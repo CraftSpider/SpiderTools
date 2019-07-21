@@ -92,7 +92,7 @@ def and_from_dict(kwargs):
     :param kwargs: Keyword arguments dict
     :return: String AND statement
     """
-    return " AND ".join(f"{x} = %({x})s" for x in kwargs)
+    return " AND ".join(f"{x} = %({x})s" if kwargs[x] is not None else f"{x} is %({x})s" for x in kwargs)
 
 
 def key_from_dict(kwargs):
