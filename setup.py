@@ -1,6 +1,5 @@
 
-from distutils.core import setup
-import pkgutil
+from setuptools import setup, find_packages
 
 
 setup(
@@ -10,5 +9,5 @@ setup(
     author="CraftSpider",
     author_email="runetynan@gmail.com",
     url="https://github.com/craftspider/spidertools",
-    packages=pkgutil.walk_packages("spidertools")
+    packages=find_packages()
 )
