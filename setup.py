@@ -1,5 +1,6 @@
 
 from distutils.core import setup
+import pkgutil
 
 
 setup(
@@ -9,12 +10,5 @@ setup(
     author="CraftSpider",
     author_email="runetynan@gmail.com",
     url="https://github.com/craftspider/spidertools",
-    packages=[
-        "spidertools",
-        "spidertools.common",
-        "spidertools.discord",
-        "spidertools.twitch",
-        "spidertools.webserver",
-        "spidertools.command_lang"
-    ]
+    packages=pkgutil.walk_packages("spidertools")
 )
