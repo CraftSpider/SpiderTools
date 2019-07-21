@@ -142,7 +142,9 @@ def invalidate(func):
 
     def cache_invalidate(self, *args, **kwargs):
         if len(args) > 0:
-            t = type(args[0])
+            t = args[0]
+            if not isinstance(t, type):
+                t = type(t)
             for key in _caches:
                 try:
                     del _caches[key][t]
