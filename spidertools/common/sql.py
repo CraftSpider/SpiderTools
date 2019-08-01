@@ -246,12 +246,12 @@ class TalosDatabase:
                                                r"`(.*?)`",
                                                tables[table]["columns"][column_index-1]
                                            ).group(1)
-                        self._cursor.execute(talos_add_column.format(table, column_spec, column_place))
+                        self.execute(talos_add_column.format(table, column_spec, column_place))
                     elif exists == 3 and type_match is not True:
                         log.warning(f"  Column {name} didn't match expected type, attempting to fix.")
                         column_spec = next(filter(lambda x: x.find("`{}`".format(name)) > -1,
                                                   tables[table]["columns"]))
-                        self._cursor.execute(talos_modify_column.format(table, column_spec))
+                        self.execute(talos_modify_column.format(table, column_spec))
                     else:
                         log.info(f"  Found column {name}")
             else:
@@ -263,7 +263,7 @@ class TalosDatabase:
                         body += ",\n FOREIGN KEY " + key
                     if "cascade" in tables[table] and tables[table]["cascade"] is True:
                         body += " ON DELETE CASCADE"
-                self._cursor.execute(
+                self.execute(
                     talos_create_table.format(
                         table, ',\n'.join(tables[table]["columns"] + ["PRIMARY KEY " + tables[table]["primary"]])
                     )
@@ -274,21 +274,21 @@ class TalosDatabase:
             if tables[table].get("defaults") is not None:
                 for values in tables[table]["defaults"]:
                     vals = str(values).strip("[]")
-                    self._cursor.execute(f"REPLACE INTO {table} VALUES ({vals})")
+                    self.execute(f"REPLACE INTO {table} VALUES ({vals})")
 
         # Drop existing triggers
         query = "SELECT trigger_name FROM information_schema.TRIGGERS WHERE trigger_schema = SCHEMA();"
-        self._cursor.execute(query)
+        self.execute(query)
         old_triggers = map(lambda x: x[0], self._cursor.fetchall())
         for trigger in old_triggers:
-            self._cursor.execute(f"DROP TRIGGER {trigger}")
+            self.execute(f"DROP TRIGGER {trigger}")
 
         # Add all triggers
         for name in triggers:
             cause = triggers[name]["cause"]
             table = triggers[name]["table"]
             text = triggers[name]["text"]
-            self._cursor.execute(talos_create_trigger.format(name, cause, table, text))
+            self.execute(talos_create_trigger.format(name, cause, table, text))
 
         return out
 
@@ -298,7 +298,7 @@ class TalosDatabase:
         :param guild_id: id of guild to clean.
         """
         for item in ["guild_options", "admins", "perm_rules", "guild_commands"]:
-            self._cursor.execute(f"DELETE FROM {self._schema}.{item} WHERE guild_id = %s", [guild_id])
+            self.execute(f"DELETE FROM {self._schema}.{item} WHERE guild_id = %s", [guild_id])
 
     def commit(self):
         """
@@ -367,10 +367,20 @@ class TalosDatabase:
         self._cursor.execute(statement, args)
         return self._cursor.fetchall()
 
+    def execute(self, statement, args=None):
+        try:
+            self._cursor.execute(statement, args)
+        except mysql.connector.errors.OperationalError() as e:
+            if e.errno == 2006:
+                self.reset_connection()
+                return self.execute(statement, args)
+            else:
+                raise
+
     # Meta methods
 
     def create_schema(self, schema):
-        self._cursor.execute(
+        self.execute(
             f"CREATE SCHEMA {schema} DEFAULT CHARACTER SET utf8"
         )
 
@@ -380,12 +390,12 @@ class TalosDatabase:
             internal += f",\nPRIMARY KEY ({primary})"
         if foreign:
             internal += f",\nFOREIGN KEY {foreign}"
-        self._cursor.execute(
+        self.execute(
             f"CREATE TABLE {table} ({internal}) ENGINE={engine} DEFAULT CHARSET={charset}"
         )
 
     def drop_table(self, table):
-        self._cursor.execute(
+        self.execute(
             f"DROP TABLE {self._schema}.{table}"
         )
 
@@ -398,24 +408,24 @@ class TalosDatabase:
         else:
             after = f"AFTER {after}"
 
-        self._cursor.execute(
+        self.execute(
             f"ALTER TABLE {table} ADD COLUMN {column} {type}{num} {constraint} {after}"
         )
 
     def modify_column(self, table, column, type, num=""):
         if num:
             num = f"({num})"
-        self._cursor.execute(
+        self.execute(
             f"ALTER TABLE {table} MODIFY COLUMN {column} {type}{num}"
         )
 
     def remove_column(self, table, column):
-        self._cursor.execute(
+        self.execute(
             f"ALTER TABLE {self._schema}.{table} DROP COLUMN {column}"
         )
 
     def has_schema(self, schema):
-        self._cursor.execute(
+        self.execute(
             "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = %s LIMIT 1",
             [schema]
         )
@@ -427,7 +437,7 @@ class TalosDatabase:
         :return: list of Table objects
         """
         query = "SELECT * FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s"
-        self._cursor.execute(query, [self._schema])
+        self.execute(query, [self._schema])
         return [data.Table(x) for x in self._cursor]
 
     def has_table(self, table):
@@ -436,7 +446,7 @@ class TalosDatabase:
         :param table: Name to check
         :return: Whether table exists in schema
         """
-        self._cursor.execute(
+        self.execute(
             "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s LIMIT 1",
             [self._schema, table]
         )
@@ -449,7 +459,7 @@ class TalosDatabase:
         :return: List of column names and data types, or None if table doesn't exist
         """
         query = "SELECT * FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s"
-        self._cursor.execute(query, [self._schema, table])
+        self.execute(query, [self._schema, table])
         return [data.Column(x) for x in self._cursor]
 
     def has_column(self, table, column):
@@ -459,7 +469,7 @@ class TalosDatabase:
         :param column: Column name to check
         :return: Whether column exists in table
         """
-        self._cursor.execute(
+        self.execute(
             "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
             "AND COLUMN_NAME = %s",
             [self._schema, table, column]
@@ -486,7 +496,7 @@ class TalosDatabase:
         if order:
             query += f" ORDER BY {order}"
         query += " LIMIT 1"
-        self._cursor.execute(query, kwargs)
+        self.execute(query, kwargs)
         result = self._cursor.fetchone()
         if result is None:
             return default
@@ -513,7 +523,7 @@ class TalosDatabase:
             if isinstance(limit, tuple):
                 limit = f"{limit[0]},{limit[1]}"
             query += f" LIMIT {limit}"
-        self._cursor.execute(query, kwargs)
+        self.execute(query, kwargs)
         return [type(x) for x in self._cursor]
 
     @cached
@@ -528,7 +538,7 @@ class TalosDatabase:
         query = f"SELECT COUNT(*) FROM {self._schema}.{type.table_name()}"
         if conditions:
             query += " WHERE " + conditions
-        self._cursor.execute(query, kwargs)
+        self.execute(query, kwargs)
         return self._cursor.fetchone()[0]
 
     @invalidate
@@ -552,7 +562,7 @@ class TalosDatabase:
                     "ON DUPLICATE KEY UPDATE "\
                     f"{update_str}"
             log.debug(query)
-            self._cursor.execute(query, row)
+            self.execute(query, row)
         except AttributeError:
             for row in item:
                 self.save_item(row)
@@ -588,7 +598,7 @@ class TalosDatabase:
                 row = list(filter(None, row))
             query = f"DELETE FROM {self._schema}.{table_name} WHERE {delete_str}"
             log.debug(query)
-            self._cursor.execute(query, row)
+            self.execute(query, row)
         except AttributeError:
             for row in item:
                 self.remove_item(row, general)
@@ -613,7 +623,7 @@ class TalosDatabase:
             if isinstance(limit, tuple):
                 limit = f"{limit[0]},{limit[1]}"
             query += f" LIMIT {limit}"
-        self._cursor.execute(query, kwargs)
+        self.execute(query, kwargs)
 
     # Guild option methods
 
@@ -691,9 +701,9 @@ class TalosDatabase:
         :param user_id: id of the user to register
         """
         query = f"INSERT INTO {self._schema}.user_options (user_id) VALUES (%s)"
-        self._cursor.execute(query, [user_id])
+        self.execute(query, [user_id])
         query = f"INSERT INTO {self._schema}.user_profiles (user_id) VALUES (%s)"
-        self._cursor.execute(query, [user_id])
+        self.execute(query, [user_id])
 
     def get_user(self, user_id):
         """
@@ -720,11 +730,11 @@ class TalosDatabase:
         :param command: name of the command that was invoked
         """
         query = f"UPDATE {self._schema}.user_profiles SET commands_invoked = commands_invoked + 1 WHERE user_id = %s"
-        self._cursor.execute(query, [user_id])
+        self.execute(query, [user_id])
         query = f"INSERT INTO {self._schema}.invoked_commands (user_id, command_name) VALUES (%s, %s) " \
                 "ON DUPLICATE KEY UPDATE " \
                 "times_invoked = times_invoked + 1"
-        self._cursor.execute(query, [user_id, command])
+        self.execute(query, [user_id, command])
 
     # Admin methods
 
@@ -847,7 +857,7 @@ class TalosDatabase:
         :param uptime: value of the uptime check to add
         """
         query = f"INSERT INTO {self._schema}.uptime VALUES (%s)"
-        self._cursor.execute(query, [uptime])
+        self.execute(query, [uptime])
 
     def get_uptime(self, start):
         """
@@ -856,7 +866,7 @@ class TalosDatabase:
         :return: List of all uptimes
         """
         query = f"SELECT time FROM {self._schema}.uptime WHERE time >= %s"
-        self._cursor.execute(query, [start])
+        self.execute(query, [start])
         result = self._cursor.fetchall()
         return result
 
@@ -866,4 +876,4 @@ class TalosDatabase:
         :param end: Value to end at for uptime removal
         """
         query = f"DELETE FROM {self._schema}.uptime WHERE time < %s"
-        self._cursor.execute(query, [end])
+        self.execute(query, [end])
