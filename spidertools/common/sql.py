@@ -716,7 +716,7 @@ class TalosDatabase:
         if user_data.get("profile") is None:
             return None
 
-        user_data["invoked"] = self.get_items(data.InvokedCommand, order="times_invoked", user_id=user_id)
+        user_data["invoked"] = self.get_items(data.InvokedCommand, order="times_invoked DESC", user_id=user_id)
         user_data["titles"] = self.get_items(data.UserTitle, user_id=user_id)
         user_data["options"] = self.get_user_options(user_id)
 
