@@ -370,7 +370,7 @@ class TalosDatabase:
     def execute(self, statement, args=None):
         try:
             self._cursor.execute(statement, args)
-        except mysql.connector.errors.OperationalError() as e:
+        except mysql.connector.errors.OperationalError as e:
             if e.errno == 2006:
                 self.reset_connection()
                 return self.execute(statement, args)
