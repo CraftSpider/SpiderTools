@@ -325,8 +325,11 @@ class TalosDatabase:
         """
 
         if self._sql_conn:
-            self.commit()
-            self._sql_conn.close()
+            try:
+                self.commit()
+                self._sql_conn.close()
+            except Exception:
+                pass
 
         cnx = None
         try:
