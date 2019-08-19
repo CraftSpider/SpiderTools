@@ -9,11 +9,11 @@ __all__ = [
 ]
 
 from .client import TalosHTTPClient
-from .data import TalosUser, TalosAdmin, PermissionRule, GuildEvent, UserTitle, GuildCommand, Quote, EventPeriod
+from .data import Row, MultiRow, SqlConvertable
 from .element import Document, Node, Content, Element
 from .errors import *
 from .nano import *
 from .pw_classes import PW, PWMember
-from .sql import TalosDatabase
+from .sql import GenericDatabase
 from .utils import *
 from . import *
