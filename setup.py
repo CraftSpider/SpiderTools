@@ -9,6 +9,6 @@ setup(
     author="CraftSpider",
     author_email="runetynan@gmail.com",
     url="https://github.com/craftspider/spidertools",
-    install_requires=["discord.py", "mysql-connector-python"],
+    install_requires=["discord.py", "mysql-connector-python", "dpytest"],
     packages=find_packages()
 )
