@@ -13,4 +13,7 @@ matrix:
 
 services: mysql
 
+install:
+  - pip install "." .
+
 script: python3 -m pytest tests
