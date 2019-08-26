@@ -6,7 +6,43 @@ import spidertools.discord as dutils
 import datetime as dt
 
 
-def align_period(period: utils.EventPeriod) -> dt.timedelta: ...
+def align_period(period: dutils.EventPeriod) -> dt.timedelta: ...
+
+class EventPeriod(utils.SqlConvertable):
+
+    __slots__ = ("_seconds",)
+
+    _seconds: int
+
+    def __new__(cls, period: Union['EventPeriod', str, None]) -> Optional['EventPeriod']: ...
+
+    def __init__(self, period: Union['EventPeriod', str]) -> None: ...
+
+    def __str__(self) -> str: ...
+
+    def __int__(self) -> int: ...
+
+    @property
+    def days(self) -> int: ...
+
+    @property
+    def hours(self) -> int: ...
+
+    @property
+    def minutes(self) -> int: ...
+
+    @minutes.setter
+    def minutes(self, value) -> None: ...
+
+    @property
+    def seconds(self) -> int: return
+
+    @seconds.setter
+    def seconds(self, value) -> None: ...
+
+    def timedelta(self) -> dt.timedelta: ...
+
+    def sql_safe(self) -> str: ...
 
 class EventLoop:
 
@@ -15,7 +51,7 @@ class EventLoop:
 
     _task: asyncio.Task
     _callback: Callable[[Any], Awaitable[None]]
-    period: utils.EventPeriod
+    period: dutils.EventPeriod
     persist: bool
     start_time: Optional[dt.datetime]
     loop: asyncio.AbstractEventLoop
@@ -44,4 +80,4 @@ class EventLoop:
 
     def stop(self) -> None: ...
 
-def eventloop(period: Union[str, utils.EventPeriod], **kwargs: Any) -> Callable[[Callable[[Any], Awaitable]], EventLoop]: ...
+def eventloop(period: Union[str, dutils.EventPeriod], **kwargs: Any) -> Callable[[Callable[[Any], Awaitable]], EventLoop]: ...

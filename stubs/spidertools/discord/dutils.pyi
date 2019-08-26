@@ -1,16 +1,15 @@
 
 from typing import Dict, Pattern, Callable
 import discord.ext.commands as commands
-
-from discord_talos.talos import Talos
+import spidertools.discord.bot as bot
 
 
 mention_patterns: Dict[str, Pattern]
 
 
-def admin_local(self: Talos, ctx: commands.Context) -> bool: ...
+def admin_local(self: bot.ExtendedBot, ctx: commands.Context) -> bool: ...
 
-def dev_local(self: Talos, ctx: commands.Context) -> bool: ...
+def dev_local(self: bot.ExtendedBot, ctx: commands.Context) -> bool: ...
 
 def admin_check() -> Callable[[commands.Context], bool]: ...
 

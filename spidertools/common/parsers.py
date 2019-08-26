@@ -108,8 +108,15 @@ _Sentinel = _Sentinel()
 
 
 class ArgParser:
+    """
+        Python command-line argument parser. Provides a consistent interface for flags and options
+    """
 
     def __init__(self, args):
+        """
+            Initialize a new parser from a set of arguments.
+        :param args: List of arguments, commonly `sys.argv`
+        """
         self.source = args[0]
         args = args[1:]
 
@@ -132,6 +139,12 @@ class ArgParser:
                 self.args.append(arg)
 
     def get_arg(self, pos, default=_Sentinel):
+        """
+            Get the argument from a given position, with optional default if argument doesn't exist
+        :param pos: Position of argument, zero-indexed
+        :param default: Optional default, returned if argument doesn't exist
+        :return: Argument at given position or default
+        """
         try:
             return self.args[pos]
         except IndexError:
@@ -140,10 +153,31 @@ class ArgParser:
             raise
 
     def has_flag(self, *, short=None, long=None):
+        """
+            Check whether the passed arguments contain a given flag. Can provide both short
+            and long forms at the same time for ease of use
+        :param short: Short form of the flag, should be a single character
+        :param long: Long form of the flag, can be any string
+        :return: Whether flag exists
+        """
         return (short in self.flags) or (long in self.flags)
 
     def has_option(self, name):
+        """
+            Check whether the passed arguments contain a given option
+        :param name: Name to check in options for
+        :return: Whether option was provided
+        """
         return name in self.options
 
-    def get_option(self, name, default=None):
-        return self.options.get(name, default)
+    def get_option(self, name, default=_Sentinel):
+        """
+            Get the value of a given option, with optional default if option doesn't exist.
+        :param name: Name of the option to get
+        :param default: Optional default, returned if argument doesn't exist
+        :return: Option with given name or default
+        """
+        if default is _Sentinel:
+            return self.options.get(name)
+        else:
+            return self.options.get(name, default)

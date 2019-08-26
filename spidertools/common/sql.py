@@ -371,6 +371,12 @@ class GenericDatabase:
         return self._cursor.fetchall()
 
     def execute(self, statement, args=None):
+        """
+            Executes a SQL statement with checks for certain connection errors that will trigger an automatic
+            reconnection and retry.
+        :param statement: Statement to execute
+        :param args: Arguments to supply to the statement
+        """
         try:
             self._cursor.execute(statement, args)
         except mysql.connector.errors.Error as e:
@@ -382,12 +388,26 @@ class GenericDatabase:
 
     # Meta methods
 
-    def create_schema(self, schema):
+    def create_schema(self, schema, charset="utf8"):
+        """
+            Add a new schema to the database, with the given name and default charset
+        :param schema: Name of the schema to create
+        :param charset: Default character set of the schema
+        """
         self.execute(
-            f"CREATE SCHEMA {schema} DEFAULT CHARACTER SET utf8"
+            f"CREATE SCHEMA {schema} DEFAULT CHARACTER SET {charset}"
         )
 
     def create_table(self, table, columns, primary="", foreign="", engine="InnoDB", charset="utf8"):
+        """
+            Add a new table to the primary schema, with a given name and set of columns
+        :param table: Name of the table to create
+        :param columns: List of column definitions
+        :param primary: Primary keys of the table
+        :param foreign: Foreign keys of the table
+        :param engine: Table engine to use
+        :param charset: Table charset to use
+        """
         internal = ",\n".join(columns)
         if primary:
             internal += f",\nPRIMARY KEY ({primary})"
@@ -398,11 +418,24 @@ class GenericDatabase:
         )
 
     def drop_table(self, table):
+        """
+            Drop a table from the primary schema
+        :param table: Name of the table to drop
+        """
         self.execute(
             f"DROP TABLE {self._schema}.{table}"
         )
 
     def add_column(self, table, column, type, num="", constraint="", after=None):
+        """
+            Add a column to a given table in the primary schema
+        :param table: Name of the table to add column to
+        :param column: Name of the column to add
+        :param type: Type of the column
+        :param num: Number for the column type
+        :param constraint: Column constraints
+        :param after: Where to place the column in the table
+        """
         if num:
             num = f"({num})"
 
@@ -416,6 +449,13 @@ class GenericDatabase:
         )
 
     def modify_column(self, table, column, type, num=""):
+        """
+            Alter a column from the given table
+        :param table: Name of the table
+        :param column: Name of the column
+        :param type: Type to set the column type to
+        :param num: Number for the column type
+        """
         if num:
             num = f"({num})"
         self.execute(
@@ -423,11 +463,21 @@ class GenericDatabase:
         )
 
     def remove_column(self, table, column):
+        """
+            Remove a column from the given table
+        :param table: Table to remove column from
+        :param column: Column to remove
+        """
         self.execute(
             f"ALTER TABLE {self._schema}.{table} DROP COLUMN {column}"
         )
 
     def has_schema(self, schema):
+        """
+            Check whether the database contains a given schema
+        :param schema: Schema to check existence of
+        :return: Whether schema exists
+        """
         self.execute(
             "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = %s LIMIT 1",
             [schema]

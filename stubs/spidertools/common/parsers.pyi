@@ -1,5 +1,5 @@
 
-from typing import Tuple, Dict, List, Iterable, Union, Optional
+from typing import Tuple, Dict, List, Iterable, Union, Optional, Sequence, overload, TypeVar
 from spidertools.common.element import Node, Element
 import html.parser as parser
 
@@ -23,3 +23,29 @@ class TreeGen(parser.HTMLParser):
     def handle_endtag(self, tag: str) -> None: ...
 
     def handle_data(self, data: str) -> None: ...
+
+_KT = TypeVar("_KT")
+
+class ArgParser:
+
+    source: Sequence[str]
+    args: List[str]
+    flags: List[str]
+    options: Dict[str, str]
+
+    def __init__(self, args: Sequence[str]) -> None: ...
+
+    @overload
+    def get_arg(self, pos) -> str: ...
+    @overload
+    def get_arg(self, pos, default: _KT) -> Union[str, _KT]: ...
+
+    def has_flag(self, *, short: Optional[str] = ..., long: Optional[str] = ...) -> bool: ...
+
+    def has_option(self, name: str) -> bool: ...
+
+    @overload
+    def get_option(self, name: str) -> str: ...
+    @overload
+    def get_option(self, name: str, default: _KT) -> Union[str, _KT]: ...
+

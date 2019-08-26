@@ -467,7 +467,26 @@ class Element(Node):
             Get the Element innertext, combination of all child Content nodes
         :return: Element innertext
         """
-        return "\n".join(map(lambda x: x.value, filter(lambda x: isinstance(x, Content), self.child_nodes)))
+        if self.tag == "br":
+            return "\n"
+
+        out = ""
+        for item in self.child_nodes:
+            if isinstance(item, Content):
+                out += item.innertext
+                continue
+            if item.tag in {"span", "em", "strong", "a"}:
+                if item.innertext.strip() == "":
+                    out += " "
+                else:
+                    out += " " + item.innertext + " "
+                out = out.lstrip()
+            else:
+                if out != "" and item.tag != "br":
+                    out += "\n"
+                out += item.innertext
+
+        return "\n".join(map(lambda x: x.rstrip(), out.split("\n")))
 
     @innertext.setter
     def innertext(self, value):

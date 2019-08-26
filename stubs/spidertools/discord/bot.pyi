@@ -46,7 +46,7 @@ class TalosCog:
 
     __slots__ = ("bot", "database")
     bot: ExtendedBot
-    database: utils.TalosDatabase
+    database: utils.GenericDatabase
 
     def __init__(self, bot: ExtendedBot): ...
 

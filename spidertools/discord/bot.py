@@ -65,7 +65,7 @@ class ExtendedBot(commands.Bot):
         :param prefix: Whether to add on a prefix if available
         """
         if prefix:
-            extdir = getattr(self, "extension_dir")
+            extdir = getattr(self, "extension_dir", None)
             if extdir is not None:
                 name = extdir + "." + name
         super().load_extension(name)
@@ -89,7 +89,7 @@ class ExtendedBot(commands.Bot):
         :param args: Other arguments to supply to `start`
         :param kwargs: Other keyword arguments to supply to `start`
         """
-        def_exts = getattr(self, "startup_extensions")
+        def_exts = getattr(self, "startup_extensions", None)
         if def_exts is not None:
             self.load_extensions(def_exts)
         for event in self.all_events:
