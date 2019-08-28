@@ -204,6 +204,7 @@ class NanoAccount(NanoUser):
         Represents the currently active account. Inherits all the info of a NanoUser, but includes a bit more and
         provides methods to allow manipulation of the values
     """
+    #  TODO: Fill in with methods and variables
 
 
 class NanoInfo:
@@ -321,6 +322,7 @@ class NanoAuthoredNovel(NanoNovel):
         Represents a novel authored by the currently active account. Inherits all the info of a NanoNovel, but includes
         a bit more and provides methods to allow manipulation of the values
     """
+    #  TODO: Fill in with methods and variables
 
 
 class NanoNovelStats:
