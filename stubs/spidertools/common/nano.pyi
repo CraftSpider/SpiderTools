@@ -5,6 +5,8 @@ import datetime as dt
 from spidertools.common import TalosHTTPClient, Document
 
 
+_title_transform: Dict[str, str] = ...
+
 class SimpleNovel(NamedTuple):
     title: str
     genre: str
@@ -13,6 +15,8 @@ class SimpleNovel(NamedTuple):
 class _Empty:
 
     def __init_subclass__(cls, **kwargs: Any) -> NoReturn: ...
+
+Empty: _Empty = ...
 
 class NanoUser:
 

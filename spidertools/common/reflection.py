@@ -9,6 +9,7 @@ import importlib.util
 import importlib.machinery
 import pkgutil
 import pathlib
+import typing
 from collections import namedtuple
 
 
@@ -406,7 +407,7 @@ def walk_with_stub_modules(base_path, stub_dir="stubs", *, skip_dirs=None, skip_
         yield code_mod, stub_mod
 
 
-def _clean_name(name, real, stub):
+def _clean_name(name, qualname, real, stub):
     """
         Return a 'cleaned' name of an object from walking items.
     :param name: Name to clean
@@ -414,7 +415,7 @@ def _clean_name(name, real, stub):
     :param stub: Stub object
     :return: New 'clean' name
     """
-    test = real if real is not None else stub
+    test = real if real is not Empty else stub
     test = unwrap(test)
     if isinstance(test, type):
         return test.__name__
@@ -423,34 +424,66 @@ def _clean_name(name, real, stub):
     return name
 
 
-ItemGenResult = namedtuple("ItemGenResult", "name code stub")
+class ItemGenResult(typing.NamedTuple):
+    name: str
+    qualname: str
+    code: typing.Any
+    stub: typing.Any
+
+    def __hash__(self):
+        """
+            Generate a hash for an ItemGenResult. Hash only on the qualname, it's the only value
+            we care about the hash of
+        :param self: ItemGenResult object
+        :return: Hash of self
+        """
+        return hash(self.qualname)
 
 
-def _walk_items_recurse(c_orig, s_orig, name_cleaner):
+class Empty:
+    """
+        Sentinel value for the recursive walk function
+    """
+
+
+def _walk_items_recurse(c_orig, s_orig, *state, qual=None):
     """
         Inner recursion loop for walking all the items in a module
     :param c_orig: Code object to walk
     :param s_orig: Stub object to walk
     :return: Set of names, code objects, and stub objects
     """
+    pred, name_cleaner, skip_names = state
+    if qual is None:
+        qual = c_orig.__name__
+    else:
+        qual += "." + c_orig.__name__
+
     out = set()
-    pred = lambda x: inspect.isroutine(x) or inspect.isclass(x) or inspect.ismethoddescriptor(x)
+    # TODO: Use custom predicate, fix hashability issues
+    # pred = lambda x: inspect.isroutine(x) or inspect.isclass(x) or inspect.ismethoddescriptor(x)
 
     for name, c_obj in get_declared(c_orig, predicate=pred):
-        s_obj = getattr(s_orig, "__dict__", {}).get(name, None) or getattr(s_orig, name, None)
-        out.add(ItemGenResult(name_cleaner(name, c_obj, s_obj), c_obj, s_obj))
-        if isinstance(c_obj, type) and s_obj is not None:
-            out.update(_walk_items_recurse(c_obj, s_obj, name_cleaner))
+        if name in skip_names:
+            continue
+        s_obj = getattr(s_orig, "__dict__", {}).get(name, None) or getattr(s_orig, name, Empty)
+        new_qual = qual + "." + name
+        out.add(ItemGenResult(name_cleaner(name, new_qual, c_obj, s_obj), new_qual, c_obj, s_obj))
+        if isinstance(c_obj, type) and s_obj is not Empty:
+            out.update(_walk_items_recurse(c_obj, s_obj, *state, qual=qual))
     for name, s_obj in get_declared(s_orig, predicate=pred):
-        c_obj = getattr(c_orig, "__dict__", {}).get(name, None) or getattr(c_orig, name, None)
-        out.add(ItemGenResult(name_cleaner(name, c_obj, s_obj), c_obj, s_obj))
-        if isinstance(s_obj, type) and c_obj is not None:
-            out.update(_walk_items_recurse(c_obj, s_obj, name_cleaner))
+        if name in skip_names:
+            continue
+        c_obj = getattr(c_orig, "__dict__", {}).get(name, None) or getattr(c_orig, name, Empty)
+        new_qual = qual + "." + name
+        out.add(ItemGenResult(name_cleaner(name, new_qual, c_obj, s_obj), new_qual, c_obj, s_obj))
+        if isinstance(s_obj, type) and c_obj is not Empty:
+            out.update(_walk_items_recurse(c_obj, s_obj, *state, qual=qual))
 
     return out
 
 
-def walk_all_items(base_path, stub_dir="stubs", *, skip_dirs=None, skip_files=None, name_cleaner=_clean_name):
+def walk_all_items(base_path, stub_dir="stubs", predicate=None, *, skip_dirs=None, skip_files=None, skip_names=None, name_cleaner=_clean_name):
     """
         Walk a directory as with `walk_with_stub_files`, but yield every single python variable, function, and class
         in all modules along the way. A very powerful introspection function, as it recurses into classes, but
@@ -461,9 +494,17 @@ def walk_all_items(base_path, stub_dir="stubs", *, skip_dirs=None, skip_files=No
                       child attributes will also be skipped
     :param skip_dirs: Directory names to skip while walking
     :param skip_files: Filenames to skip while walking
+    :param skip_names: Attribute names to skip while walking
+    :param name_cleaner: A callable accepting 4 parameters (name, qualname, code, stub) that will return the name of
+                         the object/attribute
     :return: Set of namedtuple containing the clean name, real value, and stub value of every object found
     """
+    if skip_names is None:
+        skip_names = {"__doc__", "__annotations__", "__cached__"}
+    if predicate is None:
+        predicate = lambda x: not isinstance(x, (typing.TypeVar, typing._SpecialForm))
+
     out = set()
     for code, stub in walk_with_stub_modules(base_path, stub_dir=stub_dir, skip_dirs=skip_dirs, skip_files=skip_files):
-        out.update(_walk_items_recurse(code, stub, name_cleaner))
-    return sorted(list(out), key=lambda x: x[0])
+        out.update(_walk_items_recurse(code, stub, predicate, name_cleaner, skip_names))
+    return sorted(list(out), key=lambda x: x.qualname)

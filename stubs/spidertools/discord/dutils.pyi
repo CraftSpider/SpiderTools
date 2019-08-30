@@ -4,7 +4,7 @@ import discord.ext.commands as commands
 import spidertools.discord.bot as bot
 
 
-mention_patterns: Dict[str, Pattern]
+mention_patterns: Dict[str, Pattern] = ...
 
 
 def admin_local(self: bot.ExtendedBot, ctx: commands.Context) -> bool: ...

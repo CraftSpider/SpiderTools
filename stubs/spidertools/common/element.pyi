@@ -23,7 +23,7 @@ class Document:
 
     def get_first_by_class(self, classname: str, start: 'Node' = ...) -> Optional['Element']: ...
 
-class Node:
+class Node(abc.ABC):
 
     __slots__ = ("parent", "child_nodes", "_pos_map")
 
@@ -120,9 +120,10 @@ class Element(Node):
 
      __slots__ = ("tag", "_attrs")
 
+     SELF_CLOSING: List[str] = ...
+
      tag: str
      _attrs: Dict[str, str]
-     SELF_CLOSING: List[str]
 
      def __init__(self, tag: str, attrs: Dict[str, str]) -> None: ...
 

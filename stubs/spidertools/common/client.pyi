@@ -7,7 +7,7 @@ import io
 
 class TalosHTTPClient(aiohttp.ClientSession):
 
-    __slots__ = ("nano_tries", "__tokens")
+    __slots__ = ("nano_tries", "last_guild_count", "__tokens")
 
     TALOS_URL: str = ...
     BOTLIST_URL: str = ...
@@ -18,6 +18,7 @@ class TalosHTTPClient(aiohttp.ClientSession):
     SMBC_URL: str = ...
 
     nano_tries: int
+    last_guild_count: int
     __tokens: Dict[str, Union[str, Sequence[str]]]
 
     # noinspection PyMissingConstructor

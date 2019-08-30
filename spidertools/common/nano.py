@@ -1,5 +1,5 @@
 
-import collections
+import typing
 import datetime as dt
 
 from spidertools.common import element, errors
@@ -19,7 +19,10 @@ _title_transform = {
 }
 
 
-SimpleNovel = collections.namedtuple("SimpleNovel", "title genre words")
+class SimpleNovel(typing.NamedTuple):
+    title: str
+    genre: str
+    words: int
 
 
 class _Empty:

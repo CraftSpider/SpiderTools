@@ -2,7 +2,6 @@
 import inspect
 import pytest
 import spidertools.common.reflection as reflection
-from collections import namedtuple
 
 
 @pytest.mark.parametrize("package", ["command_lang", "common", "discord", "math", "twitch", "webserver"])
@@ -34,15 +33,25 @@ def _get_type(obj):
 
 
 def _gen_test_id(val):
-    return val.name.replace(".", "/")
+    return val.qualname.replace(".", "/")
 
 
-@pytest.mark.parametrize("val", reflection.walk_all_items(".", skip_dirs=SKIP_DIRS), ids=_gen_test_id)
+SKIP_NAMES = {"__doc__", "__annotations__", "__cached__", "__cog_commands__", "__cog_listeners__", "__cog_name__",
+              "__cog_settings__"}
+
+
+@pytest.mark.parametrize("val", reflection.walk_all_items(".", skip_dirs=SKIP_DIRS, skip_names=SKIP_NAMES),
+                         ids=_gen_test_id)
 def test_stub(val):
-    name, real, stub = val
-    if stub is None:
+    name, _, real, stub = val
+
+    # Special case for us, because we actually see the Empty class while walking
+    if inspect.isclass(stub) and stub.__name__ == "Empty" and real is reflection.Empty:
+        return
+
+    if stub is reflection.Empty:
         pytest.fail(f"Missing stub for object {name}")
-    elif real is None:
+    elif real is reflection.Empty:
         pytest.fail(f"Extra stub for object {name}")
 
     real_type = _get_type(real)

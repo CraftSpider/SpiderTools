@@ -10,6 +10,8 @@ class _EmptyVal:
 
     def __eq__(self, other: Any) -> bool: ...
 
+_Empty: _EmptyVal = ...
+
 class Row(metaclass=abc.ABCMeta):
 
     __slots__ = ()

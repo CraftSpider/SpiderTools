@@ -26,6 +26,11 @@ class TreeGen(parser.HTMLParser):
 
 _KT = TypeVar("_KT")
 
+class _Sentinel:
+    pass
+
+_Sentinel = _Sentinel()
+
 class ArgParser:
 
     source: Sequence[str]

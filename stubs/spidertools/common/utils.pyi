@@ -2,16 +2,18 @@
     Talos utils stub file
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Any
 import logging
 import pathlib
 import discord.ext.commands as dcommands
 import spidertools.common.element as el
 
 
+error_client: Optional[Any] = ...
 fullwidth_transform: Dict[str, str] = ...
 tz_map: Dict[str, float] = ...
-log_folder: pathlib.Path
+byte_suffixes: List[str] = ...
+log_folder: pathlib.Path = ...
 
 def configure_logger(logger: logging.Logger, *, handlers: List[logging.Handler] = ..., formatter: logging.Formatter = ..., level: int = ..., propagate: bool = ...): ...
 
