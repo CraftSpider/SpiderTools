@@ -46,11 +46,11 @@ class EventPeriod(utils.SqlConvertable):
 
 class EventLoop:
 
-    __slots__ = ("_task", "_callback", "_instance", "period", "persist", "start_time", "loop", "name", "parent",
+    __slots__ = ("_task", "__wrapped__", "_instance", "period", "persist", "start_time", "loop", "name", "parent",
                  "description", "long_desc")
 
     _task: asyncio.Task
-    _callback: Callable[[Any], Awaitable[None]]
+    __wrapped__: Callable[[Any], Awaitable[None]]
     period: dutils.EventPeriod
     persist: bool
     start_time: Optional[dt.datetime]

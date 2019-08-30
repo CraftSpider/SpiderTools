@@ -17,10 +17,20 @@ def _float_correct(vector):
 
 
 class Rotator:
+    """
+        Class representing a rotation around 3 axis
+    """
 
     __slots__ = ("x", "y", "z")
 
     def __init__(self, x, y=None, z=None, radians=False):
+        """
+            Construct a rotator from a set of degrees/radians around three axis
+        :param x: x value of the rotator
+        :param y: y value of the rotator
+        :param z: z value of the rotator
+        :param radians: Whether the above values are in radians
+        """
         if not isinstance(x, numbers.Real):
             raise TypeError("Rotator arguments must be a number or rotator")
 
@@ -39,9 +49,18 @@ class Rotator:
             self.z = z
 
     def __repr__(self):
+        """
+            String form of this rotator, as exact values
+        :return: Rotator as a string
+        """
         return f"Rotator(x={self.x}, y={self.y}, z={self.z}, radians=True)"
 
     def __mul__(self, other):
+        """
+            Multiply this rotator by a value, or transform a vector
+        :param other: Value to multiply or vector to transform
+        :return: New rotator or vector
+        """
         if isinstance(other, vec.Vector):
             if self.x:
                 other = (math.cos(self.x) * other) + \
@@ -61,7 +80,9 @@ class Rotator:
             return NotImplemented
 
     def __rmul__(self, other):
-        if isinstance(other, vec.Vector):
-            return self.__mul__(other)
-        else:
-            return NotImplemented
+        """
+            Case for if the rotator is on the right-hand side of the equation
+        :param other: Value to multiply
+        :return: Multiplied value
+        """
+        return self.__mul__(other)

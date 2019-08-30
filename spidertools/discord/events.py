@@ -180,7 +180,7 @@ class EventLoop:
         and runs it once for every passing of period length of time.
     """
 
-    __slots__ = ("_task", "_callback", "_instance", "period", "persist", "start_time", "loop", "name", "parent",
+    __slots__ = ("_task", "__wrapped__", "_instance", "period", "persist", "start_time", "loop", "name", "parent",
                  "description", "long_desc")
 
     def __call__(self, *args, **kwargs):
@@ -200,8 +200,8 @@ class EventLoop:
         """
         if loop is None:
             loop = asyncio.get_event_loop()
+        self.__wrapped__ = coro
         self._task = None
-        self._callback = coro
         self.description = inspect.cleandoc(kwargs.get("description"))
         self.long_desc = inspect.cleandoc(kwargs.get("long_desc", inspect.getdoc(coro)))
         self.period = EventPeriod(period)
@@ -224,7 +224,7 @@ class EventLoop:
             Retrieve the internal callback object
         :return: Internal coro
         """
-        return self._callback
+        return self.__wrapped__
 
     @callback.setter
     def callback(self, value):
@@ -232,7 +232,7 @@ class EventLoop:
             Set the internal callback object
         :param value: Callback to set
         """
-        self._callback = value
+        self.__wrapped__ = value
 
     def set_start_time(self, time):
         """
