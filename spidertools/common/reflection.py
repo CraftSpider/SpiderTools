@@ -415,12 +415,6 @@ def _clean_name(name, qualname, real, stub):
     :param stub: Stub object
     :return: New 'clean' name
     """
-    test = real if real is not Empty else stub
-    test = unwrap(test)
-    if isinstance(test, type):
-        return test.__name__
-    elif inspect.isfunction(test):
-        return test.__qualname__
     return name
 
 
