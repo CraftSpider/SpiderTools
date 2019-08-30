@@ -1,6 +1,7 @@
 
 import spidertools.discord.bot as bot
 import pytest
+import _pytest.python as py
 import asyncio
 
 
