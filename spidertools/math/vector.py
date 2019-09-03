@@ -3,423 +3,501 @@ import math
 import numbers
 
 
-class Vector2:
+def _getdef(list, num, default=None):
     """
-        A 2-dimensional vector, with x and y component
+        Get value from list with default
+    :param list: List to get value from
+    :param num: Index to get
+    :param default: Default to return if index isn't in list
+    :return: Value at index, or default
+    """
+    if num < len(list):
+        return list[num]
+    return default
+
+
+def _narrow(list, l):
+    """
+        Possibly narrow a vector value list, if any of the values past `l` are not 0
+    :param list: List to narrow
+    :param l: Minimum length
+    :return: Original list or list narrowed to length `l`
+    """
+    for i in range(l, len(list)):
+        if i != 0:
+            return list
+    return list[:l]
+
+
+class Vector:
+    """
+        A generic vector type, supporting any number of dimensions. Will delegate to subclasses
+        that are registered for a specific number of dimensions, if such a subclass exists.
     """
 
-    __slots__ = ("x", "y")
+    __slots__ = ("dimensions", "_vals")
 
-    def __init__(self, x, y=None):
+    _registry = {}
+    _numeric = {}
+
+    def __new__(cls, *args):
         """
-            Initialize a new vector from x and y values
-        :param x: x value of the vector
-        :param y: y value of the vector
+            Create a new vector. Returns a standard vector if there's no
+            registered special class for this number of dimensions, in which
+            case it returns a new instance of that class
+        :param args: Initialization args
+        :return: New vector
         """
-        if not isinstance(x, numbers.Real):
-            raise TypeError("Vector2 arguments must be a number or vector")
-        self.x = x
-        if y is None:
-            self.y = x
+        if len(args) == 0:
+            raise ValueError("Length of vector initialization args must be at least 1")
+        elif len(args) in cls._numeric:
+            cls = cls._numeric[len(args)]
+
+        for i in args:
+            if not isinstance(i, numbers.Real):
+                raise TypeError("Vector arguments must be real numbers")
+
+        self = object.__new__(cls)
+        return self
+
+    def __init__(self, *args):
+        """
+            Initialize a standard vector. Set the number of dimensions and
+            the values of those dimensions
+        :param args: Dimensions values of this vector
+        """
+        self._vals = []
+        if len(args) == 1:
+            self.dimensions = int(args[0])
+            for _ in range(self.dimensions):
+                self._vals.append(0)
         else:
-            self.y = y
+            self.dimensions = len(args)
+            for i in args:
+                self._vals.append(i)
 
     def __repr__(self):
         """
-            Get the vector as a string with precise values
-        :return: Vector as a string
+            Return a string representing this vector, with number of dimensions
+            and individual values
+        :return: String form of vector
         """
-        return f"Vector2(x={self.x}, y={self.y})"
-
-    def __int__(self):
-        """
-            Vectors cannot be implicity converted to an int, throw a more helpful error if someone tries.
-        :raise: TypeError
-        """
-        raise TypeError("Vectors cannot be implicitly converted to an integer. Use abs() or .flatten")
-
-    def __float__(self):
-        """
-            Convert the vector to a float, returns the vector's magnitude
-        :return: Vector magnitude
-        """
-        return self.flatten()
+        return f"Vector{self.dimensions}({', '.join(map(str, self._vals))})"
 
     def __eq__(self, other):
         """
-            Compare this vector to another vector
-        :param other: Vector to compare to
-        :return: Compared values
+            Determine whether this vector is equal to another vector
+        :param other: Vector to compare against
+        :return: Whether vectors are equal
         """
-        if isinstance(other, Vector2):
-            return self.x == other.x and self.y == other.y
+        if isinstance(other, Vector):
+            d = max(self.dimensions, other.dimensions)
+            for i in range(d):
+                a = _getdef(self._vals, i, 0)
+                b = _getdef(other._vals, i, 0)
+                if a != b:
+                    return False
+            return True
         else:
             return NotImplemented
 
+    def __init_subclass__(cls, *args, **kwargs):
+        """
+            Initialize a new vector subclass. If the subclass name ends with a number,
+            it will be implicitly assigned that number of dimensions. Alternatively,
+            passing the `dimensions` keyword will assign the vector to that dimension number
+        :param args: Subclass arguments
+        :param kwargs: Subclass keyword arguments
+        """
+        dims = kwargs.pop("dimensions", None)
+        super().__init_subclass__(**kwargs)
+        name = cls.__name__
+
+        Vector._registry[name] = cls
+        if dims is not None:
+            if not isinstance(dims, int):
+                raise TypeError("Vector dimensions must be integer")
+            Vector._numeric[dims] = cls
+            return
+
+        i = 0
+        for i in reversed(range(len(name))):
+            if not name[i].isnumeric():
+                break
+        i += 1
+        print(name[i:])
+        if name[i:]:
+            num = int(name[i:])
+            if num in Vector._numeric:
+                raise TypeError("Attempt to register a specialized vector that already has associated type")
+            Vector._numeric[num] = cls
+
     def __add__(self, other):
         """
-            Add a value to this vector, another vector or a real number
-        :param other: Value to add
-        :return: New vector with value added
+            Sum two vectors, or a vector and an integer. If one is wider than the other, the
+            resultant vector will be widened if the result of any of the components beyond
+            the smaller vector is non-zero
+        :param other: Vector or real number to add across vector components
+        :return: Resultant vector
         """
-        if isinstance(other, Vector2):
-            return Vector2(self.x + other.x, self.y + other.y)
+        if isinstance(other, Vector):
+            new = []
+            d = max(self.dimensions, other.dimensions)
+            l = min(self.dimensions, other.dimensions)
+            for i in range(d):
+                new.append(_getdef(self._vals, i, 0) + _getdef(other._vals, i, 0))
+            return Vector(*_narrow(new, l))
         elif isinstance(other, numbers.Real):
-            return Vector2(self.x + other, self.y + other)
+            new = []
+            for i in self._vals:
+                new.append(i + other)
+            return Vector(*new)
         else:
             return NotImplemented
 
     def __sub__(self, other):
         """
-            Subtract a vector or real number from this vector
-        :param other: Value to subtract
-        :return: New vector with value subtracted
+            Subtract a vector, or an integer, from this vector. If one vector is wider than the other, the
+            resultant vector will be widened if the result of any of the components beyond
+            the smaller vector is non-zero
+        :param other: Vector or real number to subtract across vector components
+        :return: Resultant vector
         """
-        if isinstance(other, Vector2):
-            return Vector2(self.x - other.x, self.y - other.y)
+        if isinstance(other, Vector):
+            new = []
+            d = max(self.dimensions, other.dimensions)
+            l = min(self.dimensions, other.dimensions)
+            for i in range(d):
+                new.append(_getdef(self._vals, i, 0) - _getdef(other._vals, i, 0))
+            return Vector(*_narrow(new, l))
         elif isinstance(other, numbers.Real):
-            return Vector2(self.x - other, self.y - other)
+            new = []
+            for i in self._vals:
+                new.append(i - other)
+            return Vector(*new)
         else:
             return NotImplemented
 
     def __mul__(self, other):
         """
-            Multiply this vector with another vector or real number
-        :param other: Value to multiply
-        :return: New vector with multiplied value
+            Multiply two vectors, or a vector and an integer. If one is wider than the other, the
+            resultant vector will be widened if the result of any of the components beyond
+            the smaller vector is non-zero
+        :param other: Vector or real number to multiply across vector components
+        :return: Resultant vector
         """
-        if isinstance(other, Vector2):
-            return Vector2(self.x * other.x, self.y * other.y)
+        if isinstance(other, Vector):
+            new = []
+            d = max(self.dimensions, other.dimensions)
+            l = min(self.dimensions, other.dimensions)
+            for i in range(d):
+                new.append(_getdef(self._vals, i, 0) * _getdef(other._vals, i, 0))
+            return Vector(*_narrow(new, l))
         elif isinstance(other, numbers.Real):
-            return Vector2(self.x * other, self.y * other)
+            new = []
+            for i in self._vals:
+                new.append(i * other)
+            return Vector(*new)
         else:
             return NotImplemented
 
     def __truediv__(self, other):
         """
-            Divide this vector by a vector or real number
-        :param other: Value to divide by
-        :return: New vector with divided value
+            Divide two vectors, or a vector and an integer. If one is wider than the other, the
+            resultant vector will be widened if the result of any of the components beyond
+            the smaller vector is non-zero
+        :param other: Vector or real number to divide across vector components
+        :return: Resultant vector
         """
-        if isinstance(other, Vector2):
-            return Vector2(self.x / other.x, self.y / other.y)
+        if isinstance(other, Vector):
+            if other.dimensions < self.dimensions:
+                raise ValueError("Cannot divide vector by smaller vector")
+            new = []
+            for i in range(other.dimensions):
+                new.append(_getdef(self._vals, i, 0) / other._vals[i])
+            return Vector(*_narrow(new, other.dimensions))
         elif isinstance(other, numbers.Real):
-            return Vector2(self.x / other, self.y / other)
+            new = []
+            for i in self._vals:
+                new.append(i / other)
+            return Vector(*new)
         else:
             return NotImplemented
 
     def __floordiv__(self, other):
         """
-            Floordiv this vector by a vector or real number
-        :param other: Value to divide by
-        :return: New vector with divided value
+            Floor-divide two vectors, or a vector and an integer. If one is wider than the other, the
+            resultant vector will be widened if the result of any of the components beyond
+            the smaller vector is non-zero
+        :param other: Vector or real number to divide across vector components
+        :return: Resultant vector
         """
-        if isinstance(other, Vector2):
-            return Vector2(self.x // other.x, self.y // other.y)
+        if isinstance(other, Vector):
+            if other.dimensions < self.dimensions:
+                raise ValueError("Cannot divide vector by smaller vector")
+            new = []
+            for i in range(other.dimensions):
+                new.append(_getdef(self._vals, i, 0) // other._vals[i])
+            return Vector(*_narrow(new, other.dimensions))
         elif isinstance(other, numbers.Real):
-            return Vector2(self.x // other, self.y // other)
+            new = []
+            for i in self._vals:
+                new.append(i // other)
+            return Vector(*new)
         else:
             return NotImplemented
 
-    def __neg__(self):
+    def __mod__(self, other):
         """
-            Negate this vector, return its inverse
-        :return: Inverted vector
+            Modulo two vectors, or a vector and an integer. If one is wider than the other, the
+            resultant vector will be widened if the result of any of the components beyond
+            the smaller vector is non-zero
+        :param other: Vector or real number to add across vector components
+        :return: Resultant vector
         """
-        return Vector2(-self.x, -self.y)
-
-    def __abs__(self):
-        """
-            Get the absolute value (magnitude) of this vector
-        :return: Vector magnitude
-        """
-        return self.flatten()
-
-    def __round__(self, n=None):
-        """
-            Round this vector to a given number of decimal places
-        :param n: decimal places to round to
-        :return: Rounded vector
-        """
-        return Vector2(round(self.x, n), round(self.y, n))
-
-    def __trunc__(self):
-        """
-            Truncate this vector towards 0
-        :return: Truncated vector
-        """
-        return Vector2(math.trunc(self.x), math.trunc(self.y))
-
-    def __floor__(self):
-        """
-            Floor this vector, rounding towards negative infinity
-        :return: Floored vector
-        """
-        return Vector2(math.floor(self.x), math.floor(self.y))
-
-    def __ceil__(self):
-        """
-            Ceil this vector, rounding towards positive infinity
-        :return: Ceiled vector
-        """
-        return Vector2(math.ceil(self.x), math.ceil(self.y))
-
-    def flatten(self):
-        """
-            Get the magnitude of this vector
-        :return: Vector magnitude
-        """
-        return (self.x**2 + self.y**2)**.5
-
-    def to_3d(self):
-        """
-            Convert this vector to a 3d vector. Extended dimensions start at 0
-        :return: New vector with 3 dimensions
-        """
-        return Vector3(self.x, self.y, 0)
-
-
-Vector2.UNIT = Vector2(1)
-Vector2.ZERO = Vector2(0)
-Vector2.UNIT_X = Vector2(1, 0)
-Vector2.UNIT_Y = Vector2(0, 1)
-
-
-class Vector3:
-    """
-        A 3-dimensional vector, with x y and z components
-    """
-
-    __slots__ = ("x", "y", "z")
-
-    def __init__(self, x, y=None, z=None):
-        """
-            Initialize a new vector from x y and z values
-        :param x: x value of the vector
-        :param y: y value of the vector
-        :param z: z value of the vector
-        """
-        if not isinstance(x, numbers.Real):
-            raise TypeError("Vector3 arguments must be a number or vector")
-        self.x = x
-        if y is None and z is None:
-            self.y = x
-            self.z = x
-        else:
-            self.y = y or 0
-            self.z = z or 0
-
-    def __repr__(self):
-        """
-            Get the vector as a string with precise values
-        :return: Vector as a string
-        """
-        return f"Vector3(x={self.x}, y={self.y}, z={self.z})"
-
-    def __int__(self):
-        """
-            Vectors cannot be implicity converted to an int, throw a more helpful error if someone tries.
-        :raise: TypeError
-        """
-        raise TypeError("Vectors cannot be implicitly converted to an integer. Use abs() or .flatten")
-
-    def __float__(self):
-        """
-            Convert the vector to a float, returns the vector's magnitude
-        :return: Vector magnitude
-        """
-        return self.flatten()
-
-    def __eq__(self, other):
-        """
-            Compare this vector to another vector
-        :param other: Vector to compare to
-        :return: Compared values
-        """
-        if isinstance(other, Vector3):
-            return self.x == other.x and self.y == other.y and self.z == other.z
-        else:
-            return NotImplemented
-
-    def __add__(self, other):
-        """
-            Add a value to this vector, another vector or a real number
-        :param other: Value to add
-        :return: New vector with value added
-        """
-        if isinstance(other, Vector3):
-            return Vector3(self.x + other.x, self.y + other.y, self.z + other.z)
+        if isinstance(other, Vector):
+            new = []
+            d = max(self.dimensions, other.dimensions)
+            l = min(self.dimensions, other.dimensions)
+            for i in range(d):
+                new.append(_getdef(self._vals, i, 0) % _getdef(other._vals, i, 0))
+            return Vector(*_narrow(new, l))
         elif isinstance(other, numbers.Real):
-            return Vector3(self.x + other, self.y + other, self.z + other)
+            new = []
+            for i in self._vals:
+                new.append(i % other)
+            return Vector(*new)
         else:
             return NotImplemented
 
-    def __sub__(self, other):
+    def __pow__(self, power, modulo=None):
         """
-            Subtract a vector or real number from this vector
-        :param other: Value to subtract
-        :return: New vector with value subtracted
+            Get this vector to a given power, optionally with a given modulo
+        :param power: Power to raise this vector to
+        :param modulo: Optional modulo to apply to the power operation
+        :return: Resultant vector
         """
-        if isinstance(other, Vector3):
-            return Vector3(self.x - other.x, self.y - other.y, self.z - other.z)
-        elif isinstance(other, numbers.Real):
-            return Vector3(self.x - other, self.y - other, self.z - other)
-        else:
-            return NotImplemented
-
-    def __mul__(self, other):
-        """
-            Multiply this vector with another vector or real number
-        :param other: Value to multiply
-        :return: New vector with multiplied value
-        """
-        if isinstance(other, Vector3):
-            return Vector3(self.x * other.x, self.y * other.y, self.z * other.z)
-        elif isinstance(other, numbers.Real):
-            return Vector3(self.x * other, self.y * other, self.z * other)
-        else:
-            return NotImplemented
-
-    def __rmul__(self, other):
-        """
-            Handle multiplication when this vector is on the right side
-        :param other: Value to multiply
-        :return: New vector with multiplied value
-        """
-        return self.__mul__(other)
-
-    def __matmul__(self, other):
-        """
-            Divide this vector by a vector or real number
-        :param other: Value to divide by
-        :return: New vector with divided value
-        """
-        if not isinstance(other, Vector3):
-            return NotImplemented
-        return self.cross(other)
-
-    def __truediv__(self, other):
-        """
-            Divide this vector by a vector or real number
-        :param other: Value to divide by
-        :return: New vector with divided value
-        """
-        if isinstance(other, Vector3):
-            return Vector3(self.x / other.x, self.y / other.y, self.z / other.z)
-        elif isinstance(other, numbers.Real):
-            return Vector3(self.x / other, self.y / other, self.z / other)
-        else:
-            return NotImplemented
-
-    def __floordiv__(self, other):
-        """
-            Floordiv this vector by a vector or real number
-        :param other: Value to divide by
-        :return: New vector with divided value
-        """
-        if isinstance(other, Vector3):
-            return Vector3(self.x // other.x, self.y // other.y, self.z // other.z)
-        elif isinstance(other, numbers.Real):
-            return Vector(self.x // other, self.y // other, self.z // other)
+        if isinstance(power, numbers.Real):
+            new = []
+            for i in self._vals:
+                new.append(pow(i, modulo))
+            return Vector(*new)
         else:
             return NotImplemented
 
     def __or__(self, other):
         """
-            Get the dot product of this vector with another vector
-        :param other: Vector to dot with this one
-        :return: Float of dotted vector value
+            Get the inner, or dot, product of this vector with another vector
+        :param other: Vector to dot with
+        :return: Dot product of the two vectors
         """
-        if not isinstance(other, Vector3):
+        if isinstance(other, Vector):
+            return self.dot(other)
+        else:
             return NotImplemented
-        return self.dot(other)
+
+    def __rmul__(self, other):
+        """
+            Handle when the vector is on the right-hand side of an equation
+        :param other: Value to multiply by
+        :return: Multiplied vector
+        """
+        return self.__mul__(other)
 
     def __neg__(self):
         """
-            Negate this vector, return its inverse
-        :return: Inverted vector
+            Return the negation of this vector
+        :return: Negated vector
         """
-        return Vector3(-self.x, -self.y, -self.z)
+        return Vector(*[-x for x in self._vals])
+
+    def __pos__(self):
+        """
+            Return the positive form of this vector
+        :return: Positive vector
+        """
+        return Vector(*[+x for x in self._vals])
 
     def __abs__(self):
         """
-            Get the absolute value (magnitude) of this vector
+            Get the absolute value/norm/magnitude of this vector
         :return: Vector magnitude
         """
-        return self.flatten()
+        return self.magnitude()
+
+    def __invert__(self):
+        """
+            Get the inversion of this vector
+        :return: Inverted Vector
+        """
+        return Vector(*[-x for x in self._vals])
 
     def __round__(self, n=None):
         """
-            Round this vector to a given number of decimal places
-        :param n: decimal places to round to
+            Round this vector to a given number of places
+        :param n: Places to round to
         :return: Rounded vector
         """
-        return Vector3(round(self.x, n), round(self.y, n), round(self.z, n))
+        new = []
+        for i in range(self.dimensions):
+            new.append(round(self._vals[i], n))
+        return Vector(*new)
 
     def __trunc__(self):
         """
             Truncate this vector towards 0
         :return: Truncated vector
         """
-        return Vector3(math.trunc(self.x), math.trunc(self.y), math.trunc(self.z))
+        new = []
+        for i in range(self.dimensions):
+            new.append(math.trunc(self._vals[i]))
+        return Vector(*new)
 
     def __floor__(self):
         """
-            Floor this vector, rounding towards negative infinity
+            Floor this vector towards -inf
         :return: Floored vector
         """
-        return Vector3(math.floor(self.x), math.floor(self.y), math.floor(self.z))
+        new = []
+        for i in range(self.dimensions):
+            new.append(math.floor(self._vals[i]))
+        return Vector(*new)
 
     def __ceil__(self):
         """
-            Ceil this vector, rounding towards positive infinity
+            Ceil this vector towards inf
         :return: Ceiled vector
         """
-        return Vector3(math.ceil(self.x), math.ceil(self.y), math.ceil(self.z))
+        new = []
+        for i in range(self.dimensions):
+            new.append(math.ceil(self._vals[i]))
+        return Vector(*new)
 
-    def flatten(self):
+    @property
+    def x(self):
         """
-            Get the magnitude of this vector
-        :return: Vector magnitude
+            Get the X component of this vector, or the first dimension
+        :return: X component
         """
-        return (self.x**2 + self.y**2 + self.z**2)**.5
+        return self._vals[0]
 
-    def normal(self):
+    @x.setter
+    def x(self, val):
         """
-            Get a normalized version of this vector, with length of 1
-        :return: Unit vector pointing in the same direction
+            Set the X component of this vector, or the first dimension
+        :param val: Value to set X component to
         """
-        return self / self.flatten()
+        self._vals[0] = val
+
+    @property
+    def y(self):
+        """
+            Get the Y component of this vector, or the second dimension, if it exists
+        :return: Y component
+        """
+        if self.dimensions < 2:
+            raise TypeError(f"Vector{self.dimensions} does not have y component")
+        return self._vals[1]
+
+    @y.setter
+    def y(self, val):
+        """
+            Set the Y component of this vector, or the second dimension, if it exists
+        :param val: Value to set Y component to
+        """
+        if self.dimensions < 2:
+            raise TypeError(f"Vector{self.dimensions} does not have y component")
+        self._vals[1] = val
+
+    @property
+    def z(self):
+        """
+            Get the Z component of this vector, or the third dimension, if it exists
+        :return: Z component
+        """
+        if self.dimensions < 3:
+            raise TypeError(f"Vector{self.dimensions} does not have y component")
+        return self._vals[2]
+
+    @z.setter
+    def z(self, val):
+        """
+            Set the Z component of this vector, or the third dimension, if it exists
+        :param val: Value to set Z component to
+        """
+        if self.dimensions < 3:
+            raise TypeError(f"Vector{self.dimensions} does not have y component")
+        self._vals[2] = val
 
     def dot(self, other):
         """
-            Get the dot product between this vector and another vector
-        :param other: Vector to dot
-        :return: Dot product between vectors
+            Get the inner, or dot, product of this vector with another vector
+        :param other: Vector to dot with
+        :return: Dot product of the two vectors
         """
-        if not isinstance(other, Vector3):
-            raise TypeError("Attempt to dot vector with invalid type")
-        return self.x * other.x + self.y * other.y + self.z * other.z
+        if not isinstance(other, Vector):
+            raise TypeError(f"Attempt to cross Vector{self.dimensions} with invalid type")
+        d = max(self.dimensions, other.dimensions)
+        out = 0
+        for i in range(d):
+            out += _getdef(self._vals, i, 0) * _getdef(other._vals, i, 0)
+        return out
+
+    def magnitude(self):
+        """
+            Get the absolute value/norm/magnitude of this vector
+        :return: Vector norm
+        """
+        return sum([x**2 for x in self._vals])**.5
+
+    def normal(self):
+        """
+            Get this vector as a unit/normal vector
+        :return: Unit vector of this vector
+        """
+        return self / self.magnitude()
+
+    def to_dim(self, d):
+        """
+            Convert this vector to a given number of dimensions. Any dimensions truncated by
+            this operation become 0, and all new dimensions are set to 0
+        :param d: Number of dimensions for the resulting vector
+        :return: New vector with given number of dimensions
+        """
+        new = []
+        for i in range(d):
+            new.append(_getdef(self._vals, i, 0))
+        return Vector(*new)
+
+
+class Vector3(Vector):
+    """
+        Specialization of a Vector for 3 dimensions, adding support for cross-product of 3D vectors
+    """
+
+    def __matmul__(self, other):
+        """
+            Cross this 3D vector with another 3D vector
+        :param other: Vector to cross this vector with
+        :return: Cross product of two vectors
+        """
+        if isinstance(other, Vector3):
+            return self.cross(other)
+        else:
+            return NotImplemented
 
     def cross(self, other):
         """
-            Get the cross product between this vector and another vector
-        :param other: Vector to cross
-        :return: Cross product between vectors
+            Cross this 3D vector with another 3D vector
+        :param other: Vector to cross this vector with
+        :return: Cross product of two vectors
         """
         if not isinstance(other, Vector3):
-            raise TypeError("Attempt to cross vector with invalid type")
+            raise TypeError("Attempt to cross Vector3 with invalid type")
         x = self.y * other.z - self.z * other.y
         y = self.z * other.x - self.x * other.z
         z = self.x * other.y - self.y * other.x
         return Vector3(x, y, z)
-
-    def to_2d(self):
-        """
-            Convert this vector to a 2d vector. Extra dimensions are truncated
-        :return: New vector with 2 dimensions
-        """
-        return Vector2(self.x, self.y)
 
 
 def rect_list(top_left, bottom_right):
@@ -447,17 +525,3 @@ def rect_list(top_left, bottom_right):
     out[5] = Vector3(out[7].x, out[7].y, out[0].z)
     out[6] = Vector3(out[0].x, out[7].y, out[7].z)
     return out
-
-
-Vector = Vector3
-
-
-UNIT_X = Vector3(1, 0, 0)
-UNIT_Y = Vector3(0, 1, 0)
-UNIT_Z = Vector3(0, 0, 1)
-
-Vector3.UNIT = Vector3(1)
-Vector3.ZERO = Vector3(0)
-Vector3.UNIT_X = UNIT_X
-Vector3.UNIT_Y = UNIT_Y
-Vector3.UNIT_Z = UNIT_Z

@@ -39,7 +39,6 @@ def _gen_test_id(val):
 SKIP_NAMES = {"__doc__", "__annotations__", "__cached__", "__cog_commands__", "__cog_listeners__", "__cog_name__",
               "__cog_settings__"}
 
-
 @pytest.mark.parametrize("val", reflection.walk_all_items(".", skip_dirs=SKIP_DIRS, skip_names=SKIP_NAMES),
                          ids=_gen_test_id)
 def test_stub(val):
@@ -59,3 +58,23 @@ def test_stub(val):
 
     if real_type != stub_type:
         pytest.fail(f"Type mismatch for objects: {name} - Real: {real_type}, Stub: {stub_type}")
+
+    # Doesn't work due to @overload not wrapping the original function
+    """
+    real_unwrapped = reflection.unwrap(real)
+    stub_unwrapped = reflection.unwrap(stub)
+    if inspect.isfunction(real_unwrapped) or inspect.iscoroutinefunction(real_unwrapped):
+        realsig = inspect.signature(real_unwrapped)
+        stubsig = inspect.signature(stub_unwrapped)
+        if stubsig.return_annotation is inspect._empty:
+            pytest.fail(f"Missing return annotation for stub function: {name}")
+        if len(realsig.parameters) != len(stubsig.parameters):
+            pytest.fail(f"Number of parameters of stub function {name} doesn't match real")
+
+        for i in stubsig.parameters:
+            param: inspect.Parameter = stubsig.parameters[i]
+            if param.name in {"self", "cls", "mcs"}:
+                continue
+            if param.annotation is inspect._empty:
+                pytest.fail(f"Missing annotation for stub parameter: {name}.{param.name}")
+    """

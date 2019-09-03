@@ -2,7 +2,7 @@
     Talos errors stub file
 """
 
-from typing import Union
+from typing import Union, Any
 import discord
 import discord.ext.commands as commands
 
@@ -10,7 +10,7 @@ class NotRegistered(commands.CommandError):
 
     user: Union[discord.User, discord.Member]
 
-    def __init__(self, message: Union[discord.Member, discord.User], *args) -> None: ...
+    def __init__(self, message: Union[discord.Member, discord.User], *args: Any) -> None: ...
 
 class CustomCommandError(commands.CommandError):
     pass

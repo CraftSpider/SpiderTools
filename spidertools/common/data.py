@@ -65,7 +65,7 @@ class Row(metaclass=abc.ABCMeta):
         :return: Whether other object has same column names and same values in them
         """
         if not isinstance(other, Row):
-            return False
+            return NotImplemented
         for slot in self.__slots__:
             sval = getattr(self, slot, _Empty)
             oval = getattr(other, slot, _Empty)

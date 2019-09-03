@@ -1,6 +1,7 @@
 
+from typing import Union, List, Dict, overload, Any, Type
 import datetime as dt
-from typing import Union, List, Dict, overload, Any
+import types
 import discord
 from discord.embeds import Embed, EmbedProxy
 
@@ -36,7 +37,7 @@ class PaginatedEmbed(Embed):
 
     def __enter__(self) -> 'PaginatedEmbed': ...
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
+    def __exit__(self, exc_type: Type[BaseException], exc_val: BaseException, exc_tb: types.TracebackType) -> None: ...
 
     def __iter__(self) -> 'PaginatedEmbed': ...
 

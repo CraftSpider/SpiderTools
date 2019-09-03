@@ -48,8 +48,8 @@ def test_rotate_vector():
     quat = math.Quaternion(x=0, y=0.707106, z=0, w=0.707106)
     quat2 = quat * quat
 
-    assert math.UNIT_X * quat == math.Vector(0, 0, -1)
-    assert math.UNIT_X * quat2 == math.Vector(-1, 0, 0)
+    assert math.Vector(1, 0, 0) * quat == math.Vector(0, 0, -1)
+    assert math.Vector(1, 0, 0) * quat2 == math.Vector(-1, 0, 0)
 
-    assert math.UNIT_Y * quat == math.UNIT_Y
-    assert math.UNIT_Y * quat2 == math.UNIT_Y
+    assert math.Vector(0, 1, 0) * quat == math.Vector(0, 1, 0)
+    assert math.Vector(0, 1, 0) * quat2 == math.Vector(0, 1, 0)
