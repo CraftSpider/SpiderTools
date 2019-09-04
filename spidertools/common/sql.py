@@ -292,14 +292,6 @@ class GenericDatabase:
 
         return out
 
-    def clean_guild(self, guild_id):
-        """
-            Remove all entries belonging to a specific guild from the database.
-        :param guild_id: id of guild to clean.
-        """
-        for item in ["guild_options", "admins", "perm_rules", "guild_commands"]:
-            self.execute(f"DELETE FROM {self._schema}.{item} WHERE guild_id = %s", [guild_id])
-
     def commit(self):
         """
             Commits any changes to the SQL database.
@@ -378,7 +370,7 @@ class GenericDatabase:
         :param args: Arguments to supply to the statement
         """
         try:
-            self._cursor.execute(statement, args)
+            return self._cursor.execute(statement, args)
         except mysql.connector.errors.Error as e:
             if e.errno == 2006:
                 self.reset_connection()

@@ -30,5 +30,5 @@ def test_empty_database():
     assert database.is_connected() is False, "Empty database considered connected"
     assert database.raw_exec("SELECT * FROM admins") == list(), "raw_exec didn't return empty fetchall"
     assert database.commit() is False, "Database committed despite not existing?"
-
-    pass  # TODO test all the database functions
+    assert database.execute("SELECT * FROM admins WHERE id=%s", [12345678]) is None,\
+        "Database execution returned unexpected result"

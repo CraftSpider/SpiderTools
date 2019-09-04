@@ -280,7 +280,7 @@ class Vector:
         if isinstance(power, numbers.Real):
             new = []
             for i in self._vals:
-                new.append(pow(i, modulo))
+                new.append(pow(i, power, modulo))
             return Vector(*new)
         else:
             return NotImplemented
@@ -450,6 +450,14 @@ class Vector:
         """
         return sum([x**2 for x in self._vals])**.5
 
+    def magnitude_squared(self):
+        """
+            Get the magnitude of this vector squared. Avoid an extra sqrt + square
+            operation in some cases.
+        :return: Vector magnitude squared
+        """
+        return sum([x**2 for x in self._vals])
+
     def normal(self):
         """
             Get this vector as a unit/normal vector
@@ -498,6 +506,11 @@ class Vector3(Vector):
         y = self.z * other.x - self.x * other.z
         z = self.x * other.y - self.y * other.x
         return Vector3(x, y, z)
+
+
+Vector3.UNIT_X = Vector3(1, 0, 0)
+Vector3.UNIT_Y = Vector3(0, 1, 0)
+Vector3.UNIT_Z = Vector3(0, 0, 1)
 
 
 def rect_list(top_left, bottom_right):

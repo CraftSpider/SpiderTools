@@ -61,6 +61,23 @@ def test_vec2_floordiv():
     assert a // 2 == math.Vector(2, 3)
 
 
+def test_vec2_mod():
+    a = math.Vector(10, 10)
+    b = math.Vector(2, 3)
+
+    assert a % b == math.Vector(0, 1)
+    assert b % a == math.Vector(2, 3)
+    assert a % 4 == math.Vector(2, 2)
+
+
+def test_vec2_pow():
+    a = math.Vector(1, 2)
+    b = math.Vector(1, 9)
+
+    assert a**2 == math.Vector(1, 4)
+    assert b**.5 == math.Vector(1, 3)
+
+
 def test_vec2_neg():
     a = math.Vector(2, -2)
 
@@ -168,6 +185,23 @@ def test_vec3_floordiv():
     assert a // b == math.Vector(2, 2, 0)
     assert b // a == math.Vector(0, 0, 2)
     assert a // 2 == math.Vector(2, 3, 5)
+
+
+def test_vec3_mod():
+    a = math.Vector(10, 10, 4)
+    b = math.Vector(2, 3, 25)
+
+    assert a % b == math.Vector(0, 1, 4)
+    assert b % a == math.Vector(2, 3, 1)
+    assert a % 4 == math.Vector(2, 2, 0)
+
+
+def test_vec3_pow():
+    a = math.Vector(1, 2, 3)
+    b = math.Vector(1, 9, 4)
+
+    assert a**2 == math.Vector(1, 4, 9)
+    assert b**.5 == math.Vector(1, 3, 2)
 
 
 def test_vec3_dot():

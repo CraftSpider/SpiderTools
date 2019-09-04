@@ -10,7 +10,6 @@ import importlib.machinery
 import pkgutil
 import pathlib
 import typing
-from collections import namedtuple
 
 
 def unwrap(obj):
@@ -218,7 +217,7 @@ def get_declared(obj, predicate=None):
     elif inspect.isclass(obj):
         yield from _get_declared_type(obj, predicate)
     else:
-        yield from _get_declared_type(obj.__class__, predicate)
+        raise TypeError(f"Cannot get values declared by object of type '{type(obj).__name__}'")
 
 
 def _get_undoc_type(type):
@@ -454,8 +453,6 @@ def _walk_items_recurse(c_orig, s_orig, *state, qual=None):
         qual += "." + c_orig.__name__
 
     out = set()
-    # TODO: Use custom predicate, fix hashability issues
-    # pred = lambda x: inspect.isroutine(x) or inspect.isclass(x) or inspect.ismethoddescriptor(x)
 
     for name, c_obj in get_declared(c_orig, predicate=pred):
         if name in skip_names:

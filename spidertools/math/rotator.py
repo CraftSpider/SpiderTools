@@ -61,19 +61,19 @@ class Rotator:
         :param other: Value to multiply or vector to transform
         :return: New rotator or vector
         """
-        if isinstance(other, vec.Vector):
+        if isinstance(other, vec.Vector3):
             if self.x:
                 other = (math.cos(self.x) * other) + \
-                    math.sin(self.x) * (vec.UnitX @ other) + \
-                    (1 - math.cos(self.x)) * (vec.UnitX * other) * vec.UnitX
+                    math.sin(self.x) * (other.UNIT_X @ other) + \
+                    (1 - math.cos(self.x)) * (other.UNIT_X * other) * other.UNIT_X
             if self.y:
                 other = (math.cos(self.y) * other) + \
-                    math.sin(self.y) * (vec.UnitY @ other) + \
-                    (1 - math.cos(self.y)) * (vec.UnitY * other) * vec.UnitY
+                    math.sin(self.y) * (other.UNIT_Y @ other) + \
+                    (1 - math.cos(self.y)) * (other.UNIT_Y * other) * other.UNIT_Y
             if self.z:
                 other = (math.cos(self.z) * other) + \
-                    math.sin(self.z) * (vec.UnitZ @ other) + \
-                    (1 - math.cos(self.z)) * (vec.UnitZ * other) * vec.UnitZ
+                    math.sin(self.z) * (other.UNIT_Z @ other) + \
+                    (1 - math.cos(self.z)) * (other.UNIT_Z * other) * other.UNIT_Z
             _float_correct(other)
             return other
         else:
