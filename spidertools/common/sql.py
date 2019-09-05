@@ -8,14 +8,6 @@ from spidertools.common import data
 
 log = logging.getLogger("talos.utils.sql")
 
-# Default priority levels
-levels = {
-    "guild": 10,
-    "channel": 20,
-    "role": 30,
-    "user": 40
-}
-
 
 class EmptyCursor(mysql_abstracts.MySQLCursorAbstract):
     """

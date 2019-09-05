@@ -7,8 +7,6 @@ import mysql.connector.abstracts as mysql_abstracts
 _T = TypeVar("_T")
 _Row = TypeVar("_Row", bound=Row)
 
-levels: Dict[str, int] = ...
-
 class EmptyCursor(mysql_abstracts.MySQLCursorAbstract):
 
     __slots__ = ()

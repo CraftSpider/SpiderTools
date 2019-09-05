@@ -5,7 +5,7 @@ import datetime as dt
 class PW:
     """Represents a Productivity War"""
 
-    __slots__ = ('start', 'end', 'members')
+    __slots__ = ("start", "end", "members")
 
     def __init__(self):
         """Creates a PW object, with empty variables."""
@@ -72,7 +72,7 @@ class PW:
 class PWMember:
     """Represents a single member of a PW"""
 
-    __slots__ = ('user', 'start', 'end')
+    __slots__ = ("user", "start", "end")
 
     def __init__(self, user):
         """Create a PWMember object with given member"""

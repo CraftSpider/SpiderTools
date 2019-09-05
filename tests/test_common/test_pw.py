@@ -2,16 +2,12 @@
 import pytest
 
 import datetime as dt
-import discord.ext.test.backend as back
 import spidertools.common as tutils
 
 
 def test_pw_member():
-    back.configure(None, use_dummy=True)
-
-    d_guild = back.make_guild("test")
-    pw_member1 = tutils.PWMember(back.make_member(back.make_user("Test", "0001"), d_guild))
-    d_member2 = back.make_member(back.make_user("Test", "0002"), d_guild)
+    pw_member1 = tutils.PWMember({"name": "Test", "discrim": "0001"})
+    d_member2 = {"name": "Test", "discrim": "0002"}
     pw_member2 = tutils.PWMember(d_member2)
     pw_member3 = tutils.PWMember(d_member2)
 
@@ -46,18 +42,15 @@ def test_pw_member():
 
 
 def test_pw():  # TODO: Add testing for timezones, for now it's just going with UTC always
-    back.configure(None, use_dummy=True)
-
     pw = tutils.PW()
 
     assert pw.get_started() is False, "Claims started before start"
     assert pw.get_finished() is False, "Claims finished before finish"
 
     tz = dt.timezone(dt.timedelta(), "UTC")
-    d_guild = back.make_guild("test_guild")
-    d_member1 = back.make_member(back.make_user("Test", "0001"), d_guild)
-    d_member2 = back.make_member(back.make_user("Test", "0002"), d_guild)
-    d_member3 = back.make_member(back.make_user("Test", "0003"), d_guild)
+    d_member1 = {"name": "Test", "discrim": "0001"}
+    d_member2 = {"name": "Test", "discrim": "0002"}
+    d_member3 = {"name": "Test", "discrim": "0003"}
     assert pw.join(d_member1, tz) is True, "New member not successfully added"
     assert pw.join(d_member1, tz) is False, "Member already in PW still added"
     assert pw.leave(d_member1, tz) is 0, "Existing member couldn't leave"
