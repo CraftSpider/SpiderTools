@@ -11,7 +11,7 @@ def test_pw_member():
     pw_member2 = tutils.PWMember(d_member2)
     pw_member3 = tutils.PWMember(d_member2)
 
-    assert str(pw_member1) == "Test#0001", "Failed string conversion"
+    assert str(pw_member1) == str({"name": "Test", "discrim": "0001"}), "Failed string conversion"
 
     assert pw_member1 != pw_member2, "Failed difference"
     assert pw_member2 == pw_member3, "Failed equivalence"
