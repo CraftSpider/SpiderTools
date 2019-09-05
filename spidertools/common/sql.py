@@ -169,7 +169,7 @@ class GenericDatabase:
 
     __slots__ = ("_sql_conn", "_cursor", "_username", "_password", "_schema", "_host", "_port", "_schemadef")
 
-    def __init__(self, address, port, username, password, schema, schemadef):
+    def __init__(self, address, port, username, password, schema, schemadef, *, connect=True):
         """
             Initializes a TalosDatabase object. If passed None, then it replaces the cursor with a dummy class.
         :param address: Address of the SQL database
@@ -185,9 +185,10 @@ class GenericDatabase:
         self._host = address
         self._port = port
         self._sql_conn = None
-        self._cursor = None
+        self._cursor = EmptyCursor()
         self._schemadef = schemadef
-        self.reset_connection()
+        if connect:
+            self.reset_connection()
 
     def verify_schema(self):
         """

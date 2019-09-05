@@ -25,7 +25,7 @@ def test_empty_cursor():
 
 
 def test_empty_database():
-    database = tutils.GenericDatabase("", -1, "notauser", "", "talos_data", {})
+    database = tutils.GenericDatabase("", -1, "notauser", "", "talos_data", {}, connect=False)
 
     assert database.is_connected() is False, "Empty database considered connected"
     assert database.raw_exec("SELECT * FROM admins") == list(), "raw_exec didn't return empty fetchall"

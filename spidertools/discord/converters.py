@@ -20,7 +20,7 @@ class ConverterMeta(type):
         return cls(*item)
 
 
-class _TalosConverter(type, commands.Converter, metaclass=ConverterMeta):
+class GenericConverter(type, commands.Converter, metaclass=ConverterMeta):
     """
         Metaclass that will be subclassed by TalosConverters. Creates new classes on demand to be used as arguments
         to Generics in type hinting. Allows for arguments to be passed to a converter while also allowing them to be
@@ -60,7 +60,7 @@ class _TalosConverter(type, commands.Converter, metaclass=ConverterMeta):
         """
 
 
-class DateConverter(_TalosConverter):
+class DateConverter(GenericConverter):
     """
         TalosConverter, converts a string date into a date object
     """
@@ -93,7 +93,7 @@ class DateConverter(_TalosConverter):
         raise commands.UserInputError("No date conversion found")
 
 
-class TimeConverter(_TalosConverter):
+class TimeConverter(GenericConverter):
     """
         TalosConverter, converts a string time into a time object
     """

@@ -9,16 +9,16 @@ class ConverterMeta(type):
     def __getitem__(cls, item: str) -> Type['ConverterMeta']: ...
 
 
-class _TalosConverter(type, commands.Converter, metaclass=ConverterMeta):
+class GenericConverter(type, commands.Converter, metaclass=ConverterMeta):
 
     num: int = ...
 
-    def __new__(mcs, *args: Any, **kwargs: Any) -> Type['_TalosConverter']: ...
+    def __new__(mcs, *args: Any, **kwargs: Any) -> Type['GenericConverter']: ...
 
     async def convert(cls, ctx: commands.Context, argument: str) -> Any: ...
 
 
-class DateConverter(_TalosConverter):
+class DateConverter(GenericConverter):
 
     datefmt: Tuple[str, ...]
 
@@ -26,7 +26,7 @@ class DateConverter(_TalosConverter):
 
     async def convert(cls, ctx: commands.Context, argument: str) -> dt.date: ...
 
-class TimeConverter(_TalosConverter):
+class TimeConverter(GenericConverter):
 
     timefmt: Tuple[str, ...]
 
