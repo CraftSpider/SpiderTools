@@ -5,9 +5,9 @@ from spidertools.common.nano import NanoUser, NanoNovel
 import aiohttp
 import io
 
-class TalosHTTPClient(aiohttp.ClientSession):
+class TalosHTTPClient:
 
-    __slots__ = ("nano_tries", "last_guild_count", "__tokens")
+    __slots__ = ("nano_tries", "last_guild_count", "__tokens", "client")
 
     TALOS_URL: str = ...
     BOTLIST_URL: str = ...
@@ -20,6 +20,7 @@ class TalosHTTPClient(aiohttp.ClientSession):
     nano_tries: int
     last_guild_count: int
     __tokens: Dict[str, Union[str, Sequence[str]]]
+    client: aiohttp.ClientSession
 
     # noinspection PyMissingConstructor
     def __init__(self, *args: Any, tokens: Dict[str, Union[str, Sequence[str]]] = ..., **kwargs: Any) -> None: ...
