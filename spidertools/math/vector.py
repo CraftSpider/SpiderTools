@@ -29,6 +29,47 @@ def _narrow(list, l):
     return list[:l]
 
 
+def _cut_matrix(matrix, pos):
+    """
+        'Cut' a matrix, removing a vertical and horizontal line, returning the rest
+    :param matrix: Matrix to cut
+    :param pos: Column to remove
+    :return: Matrix reduced in size
+    """
+    return tuple(tuple(x for i, x in enumerate(matrix[j]) if i != pos) for j in range(1, len(matrix)))
+
+
+def _determinant(matrix):
+    """
+        Calculate the determinant of an N-Dimensional square matrix
+    :param matrix: Matrix to calculate determinant of
+    :return: Determinant of matrix
+    """
+    if len(matrix) == 2:
+        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]
+    return sum(_determinant(_cut_matrix(matrix, i)) * (1 if i % 2 == 0 else -1) for i in range(len(matrix)))
+
+
+def _semi_determinant(matrix):
+    """
+        Get a tuple containing each of the determinant values for a matrix, for use in getting orthogonal vectors
+    :param matrix: Matrix to get determinant components of
+    :return: Tuple of determinant components
+    """
+    return tuple(_determinant(_cut_matrix(matrix, i)) * (1 if i % 2 == 0 else -1) for i in range(len(matrix)))
+
+
+def _vecs_to_tuple(vecs, dims):
+    """
+        Convert a list of vectors into a matrix of them, stacked vertically, with the given number of dimensions.
+        A One Vector is prepended, to allow determinant calculation
+    :param vecs: Vectors to convert to a matrix
+    :param dims: Number of dimensions of the vectors
+    :return: Matrix made from vectors
+    """
+    return (tuple(1 for _ in range(vecs[0].dimensions)),) + tuple(x.to_tuple(dims) for x in vecs)
+
+
 class Vector:
     """
         A generic vector type, supporting any number of dimensions. Will delegate to subclasses
@@ -131,6 +172,30 @@ class Vector:
             if num in Vector._numeric:
                 raise TypeError("Attempt to register a specialized vector that already has associated type")
             Vector._numeric[num] = cls
+
+    def __getitem__(self, item):
+        """
+            Get the value of a dimension of this vector
+        :param item: Dimension to get value of
+        :return: Value of dimension
+        """
+        if item < 0:
+            raise ValueError("Vector dimension index must be non-negative")
+        elif item >= self.dimensions:
+            raise ValueError("Vector dimension index out of range")
+        return self._vals[item]
+
+    def __setitem__(self, key, value):
+        """
+            Set the value of a dimension of this vector
+        :param key: Dimension to set value of
+        :param value: Value to set dimension to
+        """
+        if key < 0:
+            raise ValueError("Vector dimension index must be non-negative")
+        elif key >= self.dimensions:
+            raise ValueError("Vector dimension index out of range")
+        self._vals[key] = value
 
     def __add__(self, other):
         """
@@ -429,6 +494,23 @@ class Vector:
             raise TypeError(f"Vector{self.dimensions} does not have y component")
         self._vals[2] = val
 
+    @classmethod
+    def get_orthogonal(cls, *vecs):
+        """
+            From a number of dimensions, get a single vector that represents a vector orthogonal to all of them.
+            This may be a Zero Vector if any vectors are parallel. Returned vector will be of the highest
+            dimensionality in the input vectors
+        :param vecs: Vectors to get orthogonal vector from
+        :return: Vector orthogonal to all input vectors
+        """
+        high_dim = max(vecs, key=lambda x: x.dimensions).dimensions
+        if len(vecs) != high_dim - 1:
+            raise ValueError(f"Incorrect number of arguments to get_orthogonal. Expected {high_dim - 1} vectors, got "
+                             f"{len(vecs)}")
+
+        matrix = _vecs_to_tuple(vecs, high_dim)
+        return Vector(*_semi_determinant(matrix))
+
     def dot(self, other):
         """
             Get the inner, or dot, product of this vector with another vector
@@ -476,6 +558,17 @@ class Vector:
         for i in range(d):
             new.append(_getdef(self._vals, i, 0))
         return Vector(*new)
+
+    def to_tuple(self, d=None):
+        """
+            Convert this vector to a tuple, optionally with the given number of dimensions. Conversion follows the
+            same rules as to_dim for trancate and extend.
+        :param d: Number of dimensions for the resulting tuple
+        :return: Tuple containing values of vector
+        """
+        if d is None:
+            d = self.dimensions
+        return tuple(_getdef(self._vals, i, 0) for i in range(d))
 
 
 class Vector3(Vector):
