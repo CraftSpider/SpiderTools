@@ -20,6 +20,17 @@ class Document:
         """
         self._head = element
 
+    def __eq__(self, other):
+        """
+            Check whether this document equals another document. Really just
+            checks whether the normalized HTML is the same
+        :param other: Document to check equality
+        :return: Whether docs are equal
+        """
+        if isinstance(other, Document):
+            return self._head.outerhtml == other._head.outerhtml
+        return NotImplemented
+
     def _depth_iterator(self, start=None):
         """
             Depth-first iterator through the HTML tree
