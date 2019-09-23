@@ -1,5 +1,5 @@
 
-from typing import List, Dict, Optional, Any, Iterator, NoReturn
+from typing import List, Dict, Optional, Any, Iterator, NoReturn, Container, Union
 import abc
 
 
@@ -22,6 +22,10 @@ class Document:
     def get_by_class(self, classname: str, start: 'Node' = ...) -> List['Element']: ...
 
     def get_first_by_class(self, classname: str, start: 'Node' = ...) -> Optional['Element']: ...
+
+    def compare_ignoring(self, doc: Document, *, tags: Container[str] = ..., attrs: Container[str] = ..., content: bool = ...) -> bool: ...
+
+    def _compare_ignoring(self, el1: Node, el2: Node, *, tags: Container[str], attrs: Container[str], content: bool) -> bool: ...
 
 class Node(abc.ABC):
 
