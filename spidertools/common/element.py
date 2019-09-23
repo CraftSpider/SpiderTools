@@ -121,6 +121,75 @@ class Document:
                 return node
         return None
 
+    def compare_ignoring(self, doc, *, tags=None, attrs=None, content=False):
+        """
+            Compare this Document with another one, ignoring specified factors
+        :param doc: Document to compare to
+        :param tags: Tags to ignore
+        :param attrs: Tag attributes to ignore
+        :param content: Whether to ignore content and just compare tag names
+        :return: Whether the two documents are the same
+        """
+        s_head = self._head
+        o_head = doc._head
+
+        if tags is None:
+            tags = set()
+        if attrs is None:
+            attrs = set()
+
+        return self._compare_ignoring(s_head, o_head, tags=set(tags), attrs=set(attrs), content=content)
+
+    def _compare_ignoring(self, el1, el2, *, tags, attrs, content):
+        if type(el1) != type(el2):
+            return False
+        if isinstance(el1, Content):
+            return content or el1.value == el2.value
+        elif isinstance(el1, Element):
+            # If the tags don't match
+            if el1.tag != el2.tag:
+                return False
+            # Check attributes for both
+            for item in el1._attrs:
+                if item in attrs:
+                    continue
+                if item not in el2._attrs:
+                    return False
+                elif el2.get_attribute(item) != el1.get_attribute(item):
+                    return False
+            for item in el2._attrs:
+                if item in attrs:
+                    continue
+                if item not in el1._attrs:
+                    return False
+                elif el2.get_attribute(item) != el1.get_attribute(item):
+                    return False
+            # Iterate over children
+            max_i = max(len(el1.child_nodes), len(el2.child_nodes))
+            i1, i2 = 0, 0
+            while i1 < max_i and i2 < max_i:
+                s_el = el1.child_nodes[i1]
+                while isinstance(s_el, Element) and s_el.tag in tags:
+                    i1 += 1
+                    if i1 >= len(el1.child_nodes):
+                        s_el = None
+                    else:
+                        s_el = el1.child_nodes[i1]
+                o_el = el2.child_nodes[i2]
+                while isinstance(o_el, Element) and o_el.tag in tags:
+                    i2 += 1
+                    if i2 >= len(el2.child_nodes):
+                        o_el = None
+                    else:
+                        o_el = el2.child_nodes[i2]
+
+                if not self._compare_ignoring(s_el, o_el, tags=tags, attrs=attrs, content=content):
+                    return False
+
+                i1 += 1
+                i2 += 1
+        return True
+
 
 class Node(abc.ABC):
     """
