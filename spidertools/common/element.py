@@ -127,7 +127,7 @@ class Document:
         :param doc: Document to compare to
         :param tags: Tags to ignore
         :param attrs: Tag attributes to ignore
-        :param content: Whether to ignore content and just compare tag names
+        :param content: Whether to ignore content and just compare tag names and attributes
         :return: Whether the two documents are the same
         """
         s_head = self._head
@@ -141,11 +141,22 @@ class Document:
         return self._compare_ignoring(s_head, o_head, tags=set(tags), attrs=set(attrs), content=content)
 
     def _compare_ignoring(self, el1, el2, *, tags, attrs, content):
+        """
+            Compare two nodes, ignoring specified factors
+        :param el1: Node 1 to compare
+        :param el2: Node 2 to compare
+        :param tags: Tag types to ignore
+        :param attrs: Attributes to ignore
+        :param content: Whether to ignore content
+        :return: Whether the two elements match
+        """
         if type(el1) != type(el2):
             return False
         if isinstance(el1, Content):
+            assert isinstance(el2, Content)
             return content or el1.value == el2.value
         elif isinstance(el1, Element):
+            assert isinstance(el2, Element)
             # If the tags don't match
             if el1.tag != el2.tag:
                 return False
@@ -335,7 +346,11 @@ class Node(abc.ABC):
         :param el: Child node to remove
         """
         if el.parent == self:
-            self.child_nodes.remove(el)
+            i = self._pos_map.pop(el)
+            del self.child_nodes[i]
+            for i in range(i, len(self.child_nodes)):
+                el = self.child_nodes[i]
+                self._pos_map[el] = i
             el.parent = None
         else:
             raise ValueError("Passed element not a child of self")
@@ -355,7 +370,6 @@ class Node(abc.ABC):
         """
         if self.parent is not None:
             self.parent.remove_child(self)
-            self.parent = None
         else:
             raise ValueError("Element has no parent")
 
@@ -554,17 +568,17 @@ class Element(Node):
         for item in self.child_nodes:
             if isinstance(item, Content):
                 out += item.innertext
-                continue
-            if item.tag in {"span", "em", "strong", "a"}:
-                if item.innertext.strip() == "":
-                    out += " "
+            elif isinstance(item, Element):
+                if item.tag in {"span", "em", "strong", "a"}:
+                    if item.innertext.strip() == "":
+                        out += " "
+                    else:
+                        out += " " + item.innertext + " "
+                    out = out.lstrip()
                 else:
-                    out += " " + item.innertext + " "
-                out = out.lstrip()
-            else:
-                if out != "" and item.tag != "br":
-                    out += "\n"
-                out += item.innertext
+                    if out != "" and item.tag != "br":
+                        out += "\n"
+                    out += item.innertext
 
         return "\n".join(map(lambda x: x.rstrip(), out.split("\n")))
 
@@ -621,7 +635,7 @@ class Element(Node):
         for child in self.child_nodes:
             for line in child.outerhtml.split("\n"):
                 out += spacing + line + "\n"
-        out += f"</{self.tag}>"
+        out += self.endtag
         return out
 
     @outerhtml.setter
