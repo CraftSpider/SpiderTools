@@ -1,0 +1,63 @@
+import aiohttp
+import json
+from . import types, state
+
+
+class NanoClient:
+
+    URL = "https://api.nanowrimo.org"
+
+    def __init__(self, username, password):
+        self.client: aiohttp.ClientSession = None
+
+        self._state = state.NanoState(self)
+        self._username = username
+        self._password = password
+
+        self._user_ids = {}
+        self._project_ids = {}
+
+        self.__auth_token = None
+
+    async def init(self):
+        self.client = aiohttp.ClientSession()
+        await self.login(self._username, self._password)
+
+    async def make_request(self, endpoint, method, data=None):
+        method = method.upper()
+        if method == "GET":
+            params = data
+            json_data = None
+        elif method == "POST":
+            params = None
+            json_data = data
+        else:
+            params = None
+            json_data = data
+
+        headers = {}
+        if self.__auth_token is not None:
+            headers["Authorization"] = self.__auth_token
+
+        async with self.client.request(method, self.URL + endpoint, params=params, json=json_data, headers=headers) as response:
+            text = await response.text()
+            if text:
+                out = json.loads(text)
+            else:
+                out = None
+            status = response.status
+            return status, out
+
+    async def login(self, username, password):
+        status, data = await self.make_request("/users/sign_in", "POST", {"identifier": username, "password": password})
+        self.__auth_token = data["auth_token"]
+
+    async def get_user(self, username):
+        if username in self._user_ids:
+            id = self._user_ids[username]
+        else:
+            id = username
+
+        user = await self._state.get_user(id)
+        self._user_ids[user.name] = user.id
+        return user

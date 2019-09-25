@@ -1,7 +1,7 @@
 
 from typing import Optional, Dict, List, Union, Sequence, Any
 from spidertools.common.element import Document, Element
-from spidertools.common.nano import NanoUser, NanoNovel
+from spidertools.common.old_nano import NanoUser, NanoNovel
 import aiohttp
 import io
 
