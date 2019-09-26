@@ -40,7 +40,7 @@ class NanoState:
             out.append(cls(self, item))
         for i in range(len(out)):
             item = out[i]
-            cache = getattr(self, f"_{item.TYPE.replace('-', _)}")
+            cache = getattr(self, f"_{item.TYPE.replace('-', '_')}")
             if item.id in cache:
                 out[i] = cache[item.id]
         return out
