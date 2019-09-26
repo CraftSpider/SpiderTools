@@ -1,4 +1,5 @@
 
+import datetime as dt
 import enum
 
 
@@ -101,7 +102,7 @@ class NanoUser(NanoObj):
         self.time_zone = data["time-zone"]
         self.postal_code = data["postal-code"]
         self.bio = data["bio"]
-        self.created_at = data["created-at"]
+        self.created_at = dt.datetime.fromisoformat(data["created-at"])
         self.email = data["email"]
         self.location = data["location"]
         self.privacy_settings = PrivacySettings(data)
@@ -183,7 +184,9 @@ class NanoUser(NanoObj):
 
     async def get_projects(self):
         if self._projects is None:
-            self._projects = await self._state.get_related(self._relationships["projects"])
+            self._projects = sorted(
+                await self._state.get_related(self._relationships["projects"]), key=lambda x: x.created_at
+            )
         return self._projects
 
     async def get_project_challenges(self):
@@ -202,7 +205,7 @@ class NanoProject(NanoObj):
         self.slug = data["slug"]
         self.unit_type = data["unit-type"]
         self.excerpt = data["excerpt"]
-        self.created_at = data["created-at"]
+        self.created_at = dt.datetime.fromisoformat(data["created-at"])
         self.summary = data["summary"]
         self.pinterest = data["pinterest-url"]
         self.playlist = data["playlist-url"]
@@ -283,7 +286,7 @@ class NanoUserBadge(NanoObj):
         self.badge_id = data["badge-id"]
         self.user_id = data["user-id"]
         self.project_challenge_id = data["project-challenge-id"]
-        self.created_at = data["created-at"]
+        self.created_at = dt.datetime.fromisoformat(data["created-at"])
 
         self._user = None
         self._badge = None
@@ -344,7 +347,7 @@ class NanoProjectSession(NanoObj):
         self.how = data["how"]
         self.where = data["where"]
         self.feeling = data["feeling"]
-        self.created_at = data["created-at"]
+        self.created_at = dt.datetime.fromisoformat(data["created-at"])
         self.unit_type = data["unit-type"]
         self.project_id = data["project-id"]
 
@@ -376,7 +379,7 @@ class NanoGroup(NanoObj):
         self.user_id = data["user_id"]
         self.group_id = data["group_id"]
         self.time_zone = data["time_zone"]
-        self.created_at = data["created-at"]
+        self.created_at = dt.datetime.fromisoformat(data["created-at"])
         self.updated_at = data["updated-at"]
         self.start_dt = data["start_dt"]
         self.end_dt = data["end-dt"]
@@ -429,7 +432,7 @@ class NanoGroupUsers(NanoObj):
     TYPE = "group-users"
 
     def _from_data(self, data):
-        self.created_at = data["created-at"]
+        self.created_at = dt.datetime.fromisoformat(data["created-at"])
         self.updated_at = data["updated-at"]
         self.group_code_id = data["group-code-id"]
         self.is_admin = data["is-admin"]
@@ -545,8 +548,8 @@ class NanoMessages(NanoObj):
         self.user_id = data["user-id"]
         self.group_id = data["group-id"]
         self.content = data["content"]
-        self.created_at = data["created-at"]
-        self.updated_at = data["updated-at"]
+        self.created_at = dt.datetime.fromisoformat(data["created-at"])
+        self.updated_at = dt.datetime.fromisoformat(data["updated-at"])
         self.official = data["official"]
         self.avatar_url = data["sender-avatar-url"]
         self.sender_name = data["sender-name"]

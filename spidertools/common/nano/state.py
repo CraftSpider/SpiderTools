@@ -11,6 +11,7 @@ class NanoState:
         self._projects = {}
         self._badges = {}
         self._external_links = {}
+        self._project_challenges = {}
 
     async def _get_with_cache(self, type, identifier, cache):
         if identifier in cache:
@@ -39,7 +40,7 @@ class NanoState:
             out.append(cls(self, item))
         for i in range(len(out)):
             item = out[i]
-            cache = getattr(self, f"_{item.TYPE}")
+            cache = getattr(self, f"_{item.TYPE.replace('-', _)}")
             if item.id in cache:
                 out[i] = cache[item.id]
         return out
