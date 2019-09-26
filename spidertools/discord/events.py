@@ -272,7 +272,7 @@ class EventLoop:
         while True:
             try:
                 log.debug(f"Running event loop {self.name}")
-                await self._callback(*args, **kwargs)
+                await self.callback(*args, **kwargs)
             except errors.StopEventLoop as e:
                 if e.message:
                     log.warning(e.message)

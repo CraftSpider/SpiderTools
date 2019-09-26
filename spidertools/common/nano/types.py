@@ -81,6 +81,16 @@ class EmailSettings:
         self.writing_reminders = data["email-writing-reminders"]
 
 
+class Funds:
+
+    __slots__ = ("goal", "raised", "donors")
+
+    def __init__(self, data):
+        self.goal = data["goal"]
+        self.raised = float(data["raised"])
+        self.donors = data["donorCount"]
+
+
 class NanoUser(NanoObj):
 
     TYPE = "users"
@@ -104,7 +114,18 @@ class NanoUser(NanoObj):
 
         # TODO: If being made from included data, add that
         self._external_links = None
+        self._favorite_books = None
+        self._favorite_authors = None
+        self._genres = None
+        self._project_sessions = None
+        self._group_users = None
+        self._groups = None
+        self._timers = None
+        self._nanomessages = None
+        self._stopwatches = None
+        self._user_badges = None
         self._projects = None
+        self._project_challenges = None
 
     async def get_external_links(self):
         if self._external_links is None:
@@ -112,34 +133,53 @@ class NanoUser(NanoObj):
         return self._external_links
 
     async def get_favorite_books(self):
-        pass
+        if self._favorite_books is None:
+            self._favorite_books = await self._state.get_related(self._relationships["favorite-books"])
+        return self._favorite_books
 
     async def get_favorite_authors(self):
-        pass
+        if self._favorite_authors is None:
+            self._favorite_authors = await self._state.get_related(self._relationships["favorite-authors"])
+        return self._favorite_authors
 
     async def get_genres(self):
-        pass
+        if self._genres is None:
+            self._genres = await self._state.get_related(self._relationships["genres"])
+        return self._genres
 
     async def get_project_sessions(self):
-        pass
+        if self._project_sessions is None:
+            self._project_sessions = await self._state.get_related(self._relationships["project-sessions"])
+        return self._project_sessions
 
     async def get_group_users(self):
-        pass
+        if self._group_users is None:
+            self._group_users = await self._state.get_related(self._relationships["group-users"])
+        return self._group_users
 
     async def get_groups(self):
-        pass
+        if self._groups is None:
+            self._groups = await self._state.get_related(self._relationships["groups"])
+        return self._groups
 
     async def get_timers(self):
-        pass
+        if self._timers is None:
+            self._timers = await self._state.get_related(self._relationships["timers"])
+        return self._timers
 
     async def get_nanomessages(self):
-        pass
+        if self._nanomessages is None:
+            self._nanomessages = await self._state.get_related(self._relationships["nanomessages"])
+        return self._nanomessages
 
     async def get_stopwatches(self):
-        pass
+        if self._stopwatches is None:
+            self._stopwatches = await self._state.get_related(self._relationships["stopwatches"])
+        return self._stopwatches
 
     async def get_user_badges(self):
-        pass
+        if self._user_badges is None:
+            self._user_badges = await self._state.get_related(self._relationships["user-badges"])
 
     async def get_projects(self):
         if self._projects is None:
@@ -147,15 +187,9 @@ class NanoUser(NanoObj):
         return self._projects
 
     async def get_project_challenges(self):
-        pass
-
-
-class NanoExternalLink(NanoObj):
-
-    TYPE = "external-links"
-
-    def _from_data(self, data):
-        raise NotImplementedError("External links not yet implemented")
+        if self._project_challenges is None:
+            self._project_challenges = await self._state.get_related(self._relationships['project-challenges'])
+        return self._project_challenges
 
 
 class NanoProject(NanoObj):
@@ -177,12 +211,36 @@ class NanoProject(NanoObj):
         self.status = data["status"]
         self.cover = data["cover"]
 
+        self._genres = None
+        self._project_challenges = None
+        self._project_sessions = None
+        self._challenges = None
         self._user = None
 
     async def get_user(self):
         if self._user is None:
             self._user = await self._state.get_user(self.user_id)
         return self._user
+
+    async def get_genres(self):
+        if self._genres is None:
+            self._genres = await self._state.get_related(self._relationships["genres"])
+        return self._genres
+
+    async def get_project_challenges(self):
+        if self._project_challenges is None:
+            self._project_challenges = await self._state.get_related(self._relationships["project-challenges"])
+        return self._project_challenges
+
+    async def get_project_sessions(self):
+        if self._project_sessions is None:
+            self._project_sessions = await self._state.get_related(self._relationships["project-sessions"])
+        return self._project_sessions
+
+    async def get_challenges(self):
+        if self._challenges is None:
+            self._challenges = await self._state.get_related(self._relationships["challenges"])
+        return self._challenges
 
 
 class NanoFavoriteBook(NanoObj):
@@ -207,7 +265,7 @@ class NanoFavoriteAuthor(NanoObj):
 
     def _from_data(self, data):
         self.name = data["name"]
-        self.user_id = data["user_name"]
+        self.user_id = data["user-id"]
 
         self._user = None
 
@@ -215,3 +273,294 @@ class NanoFavoriteAuthor(NanoObj):
         if self._user is None:
             self._user = await self._state.get_user(self.user_id)
         return self._user
+
+
+class NanoUserBadge(NanoObj):
+
+    TYPE = "user-badges"
+
+    def _from_data(self, data):
+        self.badge_id = data["badge-id"]
+        self.user_id = data["user-id"]
+        self.project_challenge_id = data["project-challenge-id"]
+        self.created_at = data["created-at"]
+
+        self._user = None
+        self._badge = None
+
+    async def get_user(self):
+        if self._user is None:
+            self._user = await self._state.get_user(self.user_id)
+        return self._user
+
+    async def get_badge(self):
+        if self._badge is None:
+            self._badge = await self._state.get_badge(self.badge_id)
+        return self._badge
+
+
+class NanoBadge(NanoObj):
+
+    TYPE = "badges"
+
+    def _from_data(self, data):
+        self.title = data["title"]
+        self.list_order = data["list-order"]
+        self.suborder = data["suborder"]
+        self.badge_type = data["badge-type"]
+        self.adheres_to = data["adheres-to"]
+        self.description = data["description"]
+        self.awarded_description = data["awarded-description"]
+        self.generic_description = data["generic-description"]
+        self.active = data["active"]
+        self.unawarded = data["unawarded"]
+        self.awarded = data["awarded"]
+
+
+class NanoGenre(NanoObj):
+
+    TYPE = "genres"
+
+    def _from_data(self, data):
+        self.name = data["name"]
+        self.user_id = data["user-id"]
+
+        self._user = None
+
+    async def get_user(self):
+        if self._user is None:
+            self._user = await self._state.get_user(self.user_id)
+        return self._user
+
+
+class NanoProjectSession(NanoObj):
+
+    TYPE = "project-sessions"
+
+    def _from_data(self, data):
+        self.start = data["start"]
+        self.end = data["end"]
+        self.count = data["count"]
+        self.how = data["how"]
+        self.where = data["where"]
+        self.feeling = data["feeling"]
+        self.created_at = data["created-at"]
+        self.unit_type = data["unit-type"]
+        self.project_id = data["project-id"]
+
+        self._project = None
+        self._project_challenge = None
+
+    async def get_project(self):
+        if self._project is None:
+            self._project = await self._state.get_project(self.project_id)
+        return self._project
+
+    async def get_project_challenge(self):
+        if self._project_challenge is None:
+            self._project_challenge = await self._state.get_related(self._relationships["project-challenge"])
+
+
+class NanoGroup(NanoObj):
+
+    TYPE = "groups"
+
+    def _from_data(self, data):
+        self.name = data["name"]
+        self.slug = data["slug"]
+        self.group_type = data["group-type"]  # TODO: Group type enum
+        self.description = data["description"]
+        self.longitude = data["longitude"]
+        self.latitude = data["latitude"]
+        self.member_count = data["member-count"]
+        self.user_id = data["user_id"]
+        self.group_id = data["group_id"]
+        self.time_zone = data["time_zone"]
+        self.created_at = data["created-at"]
+        self.updated_at = data["updated-at"]
+        self.start_dt = data["start_dt"]
+        self.end_dt = data["end-dt"]
+        self.approved_by_id = data["approved-by-id"]
+        self.url = data["url"]
+        self.plate = data["plate"]
+
+        self._user = None
+        self._external_links = None
+        self._users = None
+        self._nanomessages = None
+        self._location_groups = None
+        self._locations = None
+
+    async def get_user(self):
+        if self.user_id is None:
+            return None
+        if self._user is None:
+            self._user = await self._state.get_user(self.user_id)
+        return self._user
+
+    async def get_external_links(self):
+        if self._external_links is None:
+            self._external_links = await self._state.get_related(self._relationships["external-links"])
+        return self._external_links
+
+    async def get_users(self):
+        if self._users is None:
+            self._users = await self._state.get_related(self._relationships["users"])
+        return self._users
+
+    async def get_nanomessages(self):
+        if self._nanomessages is None:
+            self._nanomessages = await self._state.get_related(self._relationships["nanomessages"])
+        return self._nanomessages
+
+    async def get_location_groups(self):
+        if self._location_groups is None:
+            self._location_groups = await self._state.get_related(self._relationships["location-groups"])
+        return self._location_groups
+
+    async def get_locations(self):
+        if self._locations is None:
+            self._locations = await self._state.get_related(self._relationships["locations"])
+        return self._locations
+
+
+class NanoGroupUsers(NanoObj):
+
+    TYPE = "group-users"
+
+    def _from_data(self, data):
+        self.created_at = data["created-at"]
+        self.updated_at = data["updated-at"]
+        self.group_code_id = data["group-code-id"]
+        self.is_admin = data["is-admin"]
+        self.invited_by_id = data["invited-by-id"]
+        self.invitation_accepted = data["invitation-accepted"]
+        self.group_id = data["group-id"]
+        self.user_id = data["user_id"]
+        self.primary = data["primary"]
+        self.joined_at = data["entry-at"]
+        self.join_method = data["entry-method"]
+        self.left_at = data["exit-at"]
+        self.left_method = data["exit-method"]
+        self.group_type = data["group-type"]  # TODO: Group type enum
+        self.unread_messages = data["num-unread-messages"]
+
+        self._group = None
+        self._user = None
+        self._inviter = None
+
+    async def get_user(self):
+        if self._user is None:
+            self._user = await self._state.get_user(self.user_id)
+        return self._user
+
+    async def get_group(self):
+        if self._group is None:
+            self._group = await self._state.get_group(self.group_id)
+        return self._group
+
+    async def get_inviter(self):
+        if self.invited_by_id is None:
+            return None
+        if self._inviter is None:
+            self._inviter = await self._state.get_user(self.invited_by_id)
+        return self._inviter
+
+
+class NanoProjectChallenges(NanoObj):
+
+    TYPE = "project-challenges"
+
+    def _from_data(self, data):
+        self.project_id = data["project-id"]
+        self.starts_at = data["starts-at"]
+        self.ends_at = data["ends-at"]
+        self.challenge_id = data["challenge-id"]
+        self.start_count = data["start-count"]
+        self.current_count = data["current-count"]
+        self.goal = data["goal"]
+        self.unit_type = data["unit-type"]
+        self.name = data["name"]
+        self.nano_event = data["nano-event"]
+        self.latest_count = data["latest-count"]
+
+        self._project = None
+        self._challenge = None
+        self._project_sessions = None
+        self._user_badges = None
+
+    async def get_project(self):
+        if self._project is None:
+            self._project = await self._state.get_project(self.project_id)
+        return self._project
+
+    async def get_challenge(self):
+        if self._challenge is None:
+            self._challenge = await self._state.get_challenge(self.challenge_id)
+        return self._challenge
+
+    async def get_project_sessions(self):
+        if self._project_sessions is None:
+            self._project_sessions = await self._state.get_related(self._relationships["project-sessions"])
+        return self._project_sessions
+
+    async def get_user_badges(self):
+        if self._user_badges is None:
+            self._user_badges = await self._state.get_related(self._relationships["user-badges"])
+        return self._user_badges
+
+
+class NanoChallenge(NanoObj):
+
+    TYPE = "challenges"
+
+    def _from_data(self, data):
+        self.event_type = data["event-type"]  # TODO: Event type enum
+        self.start = data["starts-at"]
+        self.end = data["ends-at"]
+        self.unit_type = data["unit-type"]
+        self.default_goal = data["default-goal"]
+        self.flexible_goal = data["flexible-goal"]
+        self.writing_type = data["writing-type"]  # TODO: Writing type enum
+        self.user_id = data["user-id"]
+        self.name = data["name"]
+        self.win_starts = data["win-allowed-at"]
+        self.prep_starts = data["prep-starts-at"]
+
+        self._user = None
+
+    async def get_user(self):
+        if not self.user_id:
+            return None
+        if self._user is None:
+            self._user = await self._state.get_user(self.user_id)
+        return self._user
+
+
+class NanoMessages(NanoObj):
+
+    TYPE = "nanomessages"
+
+    def _from_data(self, data):
+        self.user_id = data["user-id"]
+        self.group_id = data["group-id"]
+        self.content = data["content"]
+        self.created_at = data["created-at"]
+        self.updated_at = data["updated-at"]
+        self.official = data["official"]
+        self.avatar_url = data["sender-avatar-url"]
+        self.sender_name = data["sender-name"]
+        self.sender_slug = data["sender-slug"]
+
+        self._user = None
+        self._group = None
+
+    async def get_user(self):
+        if self._user is None:
+            self._users = await self._state.get_user(self.user_id)
+        return self._user
+
+    async def get_group(self):
+        if self._group is None:
+            self._group = await self._state.get_group(self.group_id)
+        return self._group

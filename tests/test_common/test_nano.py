@@ -10,3 +10,5 @@ async def test_nanoclient():
     projects = await marcy.get_projects()
     user = await projects[0].get_user()
     assert marcy == user
+
+    await client.get_fundometer()

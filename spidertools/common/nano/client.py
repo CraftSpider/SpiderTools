@@ -1,6 +1,6 @@
 import aiohttp
 import json
-from . import types, state
+from . import state, types
 
 
 class NanoClient:
@@ -15,7 +15,6 @@ class NanoClient:
         self._password = password
 
         self._user_ids = {}
-        self._project_ids = {}
 
         self.__auth_token = None
 
@@ -39,7 +38,8 @@ class NanoClient:
         if self.__auth_token is not None:
             headers["Authorization"] = self.__auth_token
 
-        async with self.client.request(method, self.URL + endpoint, params=params, json=json_data, headers=headers) as response:
+        async with self.client.request(method, self.URL + endpoint, params=params, json=json_data, headers=headers)\
+                as response:  # TODO: check status code
             text = await response.text()
             if text:
                 out = json.loads(text)
@@ -51,6 +51,14 @@ class NanoClient:
     async def login(self, username, password):
         status, data = await self.make_request("/users/sign_in", "POST", {"identifier": username, "password": password})
         self.__auth_token = data["auth_token"]
+
+    async def logout(self):
+        status, data = await self.make_request("/users/logout", "POST")
+        self.__auth_token = None
+
+    async def get_fundometer(self):
+        status, data = await self.make_request("/fundometer", "GET")
+        return types.Funds(data)
 
     async def get_user(self, username):
         if username in self._user_ids:
