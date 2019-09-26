@@ -6,6 +6,7 @@ class NanoState:
 
     def __init__(self, client):
         self._client = client
+        self._genres = {}
         self._users = {}
         self._projects = {}
         self._badges = {}
