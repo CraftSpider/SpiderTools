@@ -1,5 +1,5 @@
 
-from . import types
+from . import types, errors
 
 
 class NanoState:
@@ -49,6 +49,8 @@ class NanoState:
         if include:
             data["include"] = ",".join(include)
         status, data = await self._client.make_request(f"/{type.TYPE}/{identifier}", "GET", data)
+        if status == 404:
+            raise errors.NotFound(type, identifier)
         for i in data.get("included", ()):
             self._make_with_cache(i)
         obj = type(self, data["data"])

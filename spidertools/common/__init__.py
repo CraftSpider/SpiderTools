@@ -5,13 +5,12 @@
 """
 
 __all__ = [
-    "client", "data", "element", "errors", "parsers", "pw_classes", "sql", "utils", "nano"
+    "client", "data", "element", "parsers", "pw_classes", "sql", "utils", "nano"
 ]
 
 from .client import TalosHTTPClient
 from .data import Row, MultiRow, SqlConvertable
 from .element import Document, Node, Content, Element
-from .errors import *
 from .pw_classes import PW, PWMember
 from .sql import GenericDatabase
 from .utils import *

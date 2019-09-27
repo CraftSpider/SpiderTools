@@ -1,6 +1,6 @@
 import aiohttp
 import json
-from . import state, types
+from . import state, types, errors
 
 
 class NanoClient:
@@ -17,6 +17,9 @@ class NanoClient:
         self._user_ids = {}
 
         self.__auth_token = None
+
+    def logged_in(self):
+        return self.__auth_token is not None
 
     async def init(self):
         self.client = aiohttp.ClientSession()
@@ -40,16 +43,22 @@ class NanoClient:
 
         async with self.client.request(method, self.URL + endpoint, params=params, json=json_data, headers=headers)\
                 as response:  # TODO: check status code
+            status = response.status
+
+            if status == 401:
+                raise errors.InvalidLogin("Privileged request made while client not logged in")
+
             text = await response.text()
             if text:
                 out = json.loads(text)
             else:
                 out = None
-            status = response.status
             return status, out
 
     async def login(self, username, password):
         status, data = await self.make_request("/users/sign_in", "POST", {"identifier": username, "password": password})
+        if status == 401:
+            raise errors.InvalidLogin(data["error"])
         self.__auth_token = data["auth_token"]
 
     async def logout(self):
