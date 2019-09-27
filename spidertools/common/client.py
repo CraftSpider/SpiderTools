@@ -2,11 +2,10 @@
 import aiohttp
 import io
 import logging
-import re
 import json
 import datetime as dt
 
-from spidertools.common import utils, nano, errors
+from spidertools.common import utils
 
 
 log = logging.getLogger("talos.utils.client")
@@ -22,7 +21,6 @@ class TalosHTTPClient:
 
     TALOS_URL = "https://talosbot.org/"
     BOTLIST_URL = "https://discordbots.org/"
-    NANO_URL = "https://nanowrimo.org/"
     BTN_URL = "https://www.behindthename.com/"
     CAT_URL = "https://api.thecatapi.com/v1/"
     XKCD_URL = "https://xkcd.com/"
@@ -98,87 +96,6 @@ class TalosHTTPClient:
             else:
                 log.warning(f"BTN returned {response.status}")
                 return []
-
-    async def nano_get_page(self, url):
-        """
-            Safely gets a page from the NaNoWriMo website. Tries to log on, but returns None if that fails three times
-            or for whatever reason the page can't be resolved
-        :param url: NaNo URL path to fetch from
-        :return: text of the page or None
-        """
-        async with self.client.get(self.NANO_URL + url) as response:
-            if response.status == 200:
-                if not str(response.url).startswith(self.NANO_URL + re.sub(r"/.*", "", url)):
-                    return None
-                return utils.to_dom(await response.text())
-            elif response.status == 403:
-                response = await self.nano_login_client()
-                if response == 200:
-                    return await self.nano_get_page(url)
-                else:
-                    return None
-            else:
-                log.warning(f"Got unexpected response status {response.status}")
-                return None
-
-    async def nano_get_user(self, username):
-        """
-            Returns a given NaNo user profile, if it can be found.
-        :param username: username of nano user to get profile of
-        :return: text of the profile page for that user or None
-        """
-        user = nano.NanoUser(self, username)
-        await user._initialize()
-        return user
-
-    async def nano_get_novel(self, username, title=None):
-        """
-            Returns the novel of a given NaNo user. This year's novel, if specific name not given.
-        :param username: user to get novel of.
-        :param title: novel to get for user. Most recent if not given.
-        :return: NanoNovel object, or None.
-        """
-        user = nano.NanoUser(self, username)
-        if title is None:
-            return await user.current_novel
-        else:
-            for novel in await user.novels:
-                if novel.title == title:
-                    return novel
-            raise errors.NotANovel(title)
-
-    async def nano_login_client(self):
-        """
-            Login the client to the NaNo site.
-        :return: status of login request.
-        """
-        self.nano_tries += 1
-        login_page = await self.get_site(self.NANO_URL + "sign_in")
-        auth_el = login_page.get_by_name("authenticity_token")
-        auth_key = ""
-        if auth_el:
-            auth_key = auth_el.get_attribute("value")
-        params = {
-            "utf8": "✓",
-            "authenticity_token": auth_key,
-            "user_session[name]": self.__tokens["nano"][0],
-            "user_session[password]": self.__tokens["nano"][1],
-            "user_session[remember_me]": "0",
-            "commit": "Sign+in"
-        }
-        async with self.client.post(self.NANO_URL + "sign_in", data=params) as response:
-            doc = utils.to_dom(await response.text())
-            status = response.status
-            sign_in = list(filter(lambda x: x.get_attribute("href") == "/sign_in", doc.get_by_tag("a")))
-            if sign_in:
-                if self.nano_tries < 3:
-                    return await self.nano_login_client()
-                else:
-                    status = 403
-                    self.nano_tries = 0
-            else:
-                self.nano_tries = 0
-            return status
 
     async def get_cat_pic(self):
         """

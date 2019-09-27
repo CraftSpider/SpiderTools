@@ -8,7 +8,7 @@ class NanoClient:
     URL = "https://api.nanowrimo.org"
 
     def __init__(self, username, password):
-        self.client: aiohttp.ClientSession = None
+        self.client = None
 
         self._state = state.NanoState(self)
         self._username = username
@@ -60,12 +60,14 @@ class NanoClient:
         status, data = await self.make_request("/fundometer", "GET")
         return types.Funds(data)
 
-    async def get_user(self, username):
+    async def get_user(self, username, include):
         if username in self._user_ids:
             id = self._user_ids[username]
         else:
             id = username
+        if isinstance(include, str):
+            include = [include]
 
-        user = await self._state.get_user(id)
+        user = await self._state.get_user(id, include=include)
         self._user_ids[user.name] = user.id
         return user

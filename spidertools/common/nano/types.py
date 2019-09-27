@@ -11,15 +11,23 @@ def _from_iso(s):
 
 class NanoObj:
 
-    __slots__ = ("_state", "_relationships", "id")
+    __slots__ = ("_state", "_relationships", "_self", "id")
 
     TYPE_MAP = {}
 
     def __init__(self, state, data):
         self._state = state
         self.id = int(data["id"])
-        self._relationships = {x: data["relationships"][x]["links"]["related"] for x in data["relationships"]}
+        self._self = data["links"]["self"]
+        self._relationships = {}
         self._from_data(data["attributes"])
+        for key, val in data["relationships"].items():
+            self._relationships[key] = val["links"]["related"]
+            for i in val.get("data", ()):
+                name = f"_{key.replace('-', '_')}"
+                if getattr(self, name) is None:
+                    setattr(self, name, [])
+                getattr(self, name).append(self._state._get_cache_obj(i["type"], int(i["id"])))
 
     def __init_subclass__(cls, **kwargs):
         if not hasattr(cls, "TYPE"):
@@ -28,6 +36,9 @@ class NanoObj:
 
     def _from_data(self, data):
         raise NotImplementedError("Subclasses expected to implement this")
+
+    async def update(self):
+        await self._state.update(self)
 
 
 class PrivacyOptions(enum.IntEnum):
@@ -88,6 +99,28 @@ class EmailSettings:
         self.writing_reminders = data["email-writing-reminders"]
 
 
+class UserStats:
+
+    __slots__ = ("projects", "projects_enabled", "streak", "streak_enabled", "word_count", "word_count_enabled",
+                 "wordiest", "wordiest_enabled", "writing_pace", "writing_pace_enabled", "years_done", "years_won",
+                 "years_enabled")
+
+    def __init__(self, data):
+        self.projects = data["stats-projects"]
+        self.projects_enabled = data["stats-projects-enabled"]
+        self.streak = data["stats-streak"]
+        self.streak_enabled = data["stats-streak-enabled"]
+        self.word_count = data["stats-word-count"]
+        self.word_count_enabled = data["stats-word-count-enabled"]
+        self.wordiest = data["stats-wordiest"]
+        self.wordiest_enabled = data["stats-wordiest-enabled"]
+        self.writing_pace = data["stats-writing-pace"]
+        self.writing_pace_enabled = data["stats-writing-pace-enabled"]
+        self.years_done = data["stats-years-done"]
+        self.years_won = data["stats-years-won"]
+        self.years_enabled = data["stats-years-enabled"]
+
+
 class Funds:
 
     __slots__ = ("goal", "raised", "donors")
@@ -111,15 +144,24 @@ class NanoUser(NanoObj):
         self.created_at = _from_iso(data["created-at"])
         self.email = data["email"]
         self.location = data["location"]
-        self.privacy_settings = PrivacySettings(data)
-        self.notification_settings = NotificationSettings(data)
-        self.email_settings = EmailSettings(data)
+        try:
+            self.privacy_settings = PrivacySettings(data)
+        except KeyError:
+            self.privacy_settings = None
+        try:
+            self.notification_settings = NotificationSettings(data)
+        except KeyError:
+            self.notification_settings = None
+        try:
+            self.email_settings = EmailSettings(data)
+        except KeyError:
+            self.email_settings = None
+        self.stats = UserStats(data)
         self.halo = data["halo"]
         self.laurels = data["laurels"]
         self.avatar = data["avatar"]
         self.plate = data["plate"]
 
-        # TODO: If being made from included data, add that
         self._external_links = None
         self._favorite_books = None
         self._favorite_authors = None
@@ -368,6 +410,7 @@ class NanoProjectSession(NanoObj):
     async def get_project_challenge(self):
         if self._project_challenge is None:
             self._project_challenge = await self._state.get_related(self._relationships["project-challenge"])
+        return self._project_challenge
 
 
 class NanoGroup(NanoObj):
@@ -386,7 +429,7 @@ class NanoGroup(NanoObj):
         self.group_id = data["group_id"]
         self.time_zone = data["time_zone"]
         self.created_at = _from_iso(data["created-at"])
-        self.updated_at = data["updated-at"]
+        self.updated_at = _from_iso(data["updated-at"])
         self.start_dt = data["start_dt"]
         self.end_dt = data["end-dt"]
         self.approved_by_id = data["approved-by-id"]
@@ -433,13 +476,13 @@ class NanoGroup(NanoObj):
         return self._locations
 
 
-class NanoGroupUsers(NanoObj):
+class NanoGroupUser(NanoObj):
 
     TYPE = "group-users"
 
     def _from_data(self, data):
         self.created_at = _from_iso(data["created-at"])
-        self.updated_at = data["updated-at"]
+        self.updated_at = _from_iso(data["updated-at"])
         self.group_code_id = data["group-code-id"]
         self.is_admin = data["is-admin"]
         self.invited_by_id = data["invited-by-id"]
@@ -476,7 +519,7 @@ class NanoGroupUsers(NanoObj):
         return self._inviter
 
 
-class NanoProjectChallenges(NanoObj):
+class NanoProjectChallenge(NanoObj):
 
     TYPE = "project-challenges"
 
@@ -546,7 +589,7 @@ class NanoChallenge(NanoObj):
         return self._user
 
 
-class NanoMessages(NanoObj):
+class NanoMessage(NanoObj):
 
     TYPE = "nanomessages"
 
@@ -568,6 +611,83 @@ class NanoMessages(NanoObj):
         if self._user is None:
             self._users = await self._state.get_user(self.user_id)
         return self._user
+
+    async def get_group(self):
+        if self._group is None:
+            self._group = await self._state.get_group(self.group_id)
+        return self._group
+
+
+class NanoExternalLink(NanoObj):
+
+    TYPE = "external-links"
+
+    def _from_data(self, data):
+        self.url = data["url"]
+        self.user_id = data["user-id"]
+
+        self._user = None
+
+    async def get_user(self):
+        if self._user is None:
+            self._user = await self._state.get_user(self.user_id)
+        return self._user
+
+
+class NanoGroupExternalLink(NanoObj):
+
+    TYPE = "group-external-links"
+
+    def _from_data(self, data):
+        self.url = data["url"]
+        self.group_id = data["group-id"]
+
+        self._group = None
+
+    async def get_group(self):
+        if self._group is None:
+            self._group = await self._state.get_group(self.group_id)
+        return self._group
+
+
+class NanoLocation(NanoObj):
+
+    TYPE = "locations"
+
+    def _from_data(self, data):
+        self.name = data["name"]
+        self.street1 = data["street1"]
+        self.street2 = data["street2"]
+        self.city = data["city"]
+        self.state = data["state"]
+        self.country = data["country"]
+        self.postal_code = data["postal-code"]
+        self.longitude = data["longitude"]
+        self.latitude = data["latitude"]
+        self.formatted_address = data["formatted-address"]
+        self.map_url = data["map-url"]
+        self.county = data["county"]
+        self.neighborhood = data["neighborhood"]
+        self.municipality = data["municipality"]
+        self.utc_offset = data["utc-offset"]
+
+
+class NanoLocationGroup(NanoObj):
+
+    TYPE = "location-groups"
+
+    def _from_data(self, data):
+        self.location_id = data["location-id"]
+        self.group_id = data["group-id"]
+        self.primary = data["primary"]
+
+        self._location = None
+        self._group = None
+
+    async def get_location(self):
+        if self._location is None:
+            self._location = await self._state.get_location(self.location_id)
+        return self._location
 
     async def get_group(self):
         if self._group is None:
