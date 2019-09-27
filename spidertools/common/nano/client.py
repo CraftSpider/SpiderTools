@@ -42,10 +42,10 @@ class NanoClient:
             headers["Authorization"] = self.__auth_token
 
         async with self.client.request(method, self.URL + endpoint, params=params, json=json_data, headers=headers)\
-                as response:  # TODO: check status code
+                as response:
             status = response.status
 
-            if status == 401:
+            if status == 401 and not self.logged_in():
                 raise errors.InvalidLogin("Privileged request made while client not logged in")
 
             text = await response.text()
