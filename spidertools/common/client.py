@@ -37,6 +37,12 @@ class TalosHTTPClient:
         self.last_guild_count = 0
         self.client = aiohttp.ClientSession(*args, **kwargs)
 
+    async def close(self):
+        """
+            Close this HTTP Client object
+        """
+        await self.client.close()
+
     async def get_site(self, url, **kwargs):
         """
             Get the text of a given URL
