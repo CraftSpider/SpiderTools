@@ -27,5 +27,5 @@ class NotFound(NanoException):
 class UserNotFound(NotFound):
     ...
 
-class NotANovel(NotFound):
+class ProjectNotFound(NotFound):
     ...
