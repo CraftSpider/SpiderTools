@@ -42,9 +42,12 @@ class NanoState:
         cache = self._resolve_cache(type)
         return cache.get(id, None)
 
-    async def _get_with_cache(self, type, identifier, cache, include=()):
+    async def _get_with_cache(self, type, identifier, cache, *, include=(), update=False):
         if identifier in cache:
-            return cache[identifier]
+            obj = cache[identifier]
+            if update:
+                await self.update(obj)
+            return obj
         data = {}
         if include:
             data["include"] = ",".join(include)
@@ -61,14 +64,14 @@ class NanoState:
         status, data = await self._client.make_request(obj._self, "GET")
         obj._from_data(data["data"]["attributes"])
 
-    async def get_obj(self, type, id, include=()):
-        return await self._get_with_cache(self._resolve_type(type), id, self._resolve_cache(type), include)
+    async def get_obj(self, type, id, **kwargs):
+        return await self._get_with_cache(self._resolve_type(type), id, self._resolve_cache(type), **kwargs)
 
-    async def get_user(self, identifier, include=()):
-        return await self._get_with_cache(types.NanoUser, identifier, self._users, include)
+    async def get_user(self, identifier, **kwargs):
+        return await self._get_with_cache(types.NanoUser, identifier, self._users, **kwargs)
 
-    async def get_project(self, identifier, include=()):
-        return await self._get_with_cache(types.NanoProject, identifier, self._projects, include)
+    async def get_project(self, identifier, **kwargs):
+        return await self._get_with_cache(types.NanoProject, identifier, self._projects, **kwargs)
 
     async def get_badge(self, identifier):
         return await self._get_with_cache(types.NanoBadge, identifier, self._badges)

@@ -77,6 +77,6 @@ class NanoClient:
         if isinstance(include, str):
             include = [include]
 
-        user = await self._state.get_user(id, include=include)
+        user = await self._state.get_user(id, include=include, update=True)
         self._user_ids[user.name] = user.id
         return user

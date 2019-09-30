@@ -561,6 +561,10 @@ class NanoProjectChallenge(NanoObj):
             self._user_badges = await self._state.get_related(self._relationships["user-badges"])
         return self._user_badges
 
+    async def get_stats(self):
+        raise NotImplementedError()
+        # return await self._state.get_obj(NanoStats, "/daily-aggregates/")
+
 
 class NanoChallenge(NanoObj):
 
