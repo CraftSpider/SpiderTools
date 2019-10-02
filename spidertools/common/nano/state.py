@@ -85,3 +85,7 @@ class NanoState:
     async def get_related(self, relation_link):
         status, data = await self._client.make_request(relation_link, "GET")
         return [self._make_with_cache(x) for x in data["data"]]
+
+    async def patch_obj(self, obj, data):
+        payload = {"data": data}
+        status, data = self._client.make_request(f"/{type(obj).TYPE}/{obj.id}", "PATCH", payload)

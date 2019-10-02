@@ -9,6 +9,9 @@ def _from_iso(s):
     return dt.datetime.fromisoformat(s)
 
 
+_Null = object()
+
+
 class NanoObj:
 
     __slots__ = ("_state", "_relationships", "_self", "id")
@@ -292,6 +295,49 @@ class NanoProject(NanoObj):
         if self._challenges is None:
             self._challenges = await self._state.get_related(self._relationships["challenges"])
         return self._challenges
+
+    async def edit_details(self, *, title=_Null, unit_type=_Null, excerpt=_Null, summary=_Null, pinterest=_Null,
+                           playlist=_Null, privacy=_Null, primary=_Null, status=_Null, cover=_Null):
+
+        if title is _Null:
+            title = self.title
+        if unit_type is _Null:
+            unit_type = self.unit_type
+        if excerpt is _Null:
+            excerpt = self.excerpt
+        if summary is _Null:
+            summary = self.summary
+        if pinterest is _Null:
+            pinterest = self.pinterest
+        if playlist is _Null:
+            playlist = self.playlist
+        if privacy is _Null:
+            privacy = self.privacy
+        if primary is _Null:
+            primary = self.primary
+        if status is _Null:
+            status = self.status
+        if cover is _Null:
+            cover = self.cover
+
+        data = {
+            "user-id": self.user_id,
+            "title": title,
+            "slug": self.slug,
+            "unit-type": unit_type,
+            "excerpt": excerpt,
+            "created-at": self.created_at,
+            "summary": summary,
+            "pinterest-url": pinterest,
+            "playlist-url": playlist,
+            "privacy": privacy,
+            "primary": primary,
+            "status": status,
+            "cover": cover
+        }
+
+        await self._state.patch_obj(self, data)
+        self._from_data(data)
 
 
 class NanoFavoriteBook(NanoObj):

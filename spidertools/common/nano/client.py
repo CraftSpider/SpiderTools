@@ -30,9 +30,6 @@ class NanoClient:
         if method == "GET":
             params = data
             json_data = None
-        elif method == "POST":
-            params = None
-            json_data = data
         else:
             params = None
             json_data = data
