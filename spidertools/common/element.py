@@ -179,14 +179,20 @@ class Document:
             max_i = max(len(el1.child_nodes), len(el2.child_nodes))
             i1, i2 = 0, 0
             while i1 < max_i and i2 < max_i:
-                s_el = el1.child_nodes[i1]
+                if i1 >= len(el1.child_nodes):
+                    s_el = None
+                else:
+                    s_el = el1.child_nodes[i1]
                 while isinstance(s_el, Element) and s_el.tag in tags:
                     i1 += 1
                     if i1 >= len(el1.child_nodes):
                         s_el = None
                     else:
                         s_el = el1.child_nodes[i1]
-                o_el = el2.child_nodes[i2]
+                if i2 >= len(el2.child_nodes):
+                    o_el = None
+                else:
+                    o_el = el2.child_nodes[i2]
                 while isinstance(o_el, Element) and o_el.tag in tags:
                     i2 += 1
                     if i2 >= len(el2.child_nodes):
