@@ -1,6 +1,7 @@
 
 import aiohttp
 import json
+import multidict
 
 from . import types, constants as const
 
@@ -26,12 +27,30 @@ class NotASubscriber(Exception):
     """
 
 
+def needs_open(func):
+    """
+        Declare a function as requiring an open connection. Will automatically open the connection if necessary
+    :param func: Function to wrap
+    :return: Wrapped function
+    """
+    async def wrapper(self, *args, **kwargs):
+        if self._open is False:
+            self.session = aiohttp.ClientSession()
+            self._open = True
+        func(*args, **kwargs)
+
+    wrapper.__doc__ = func.__doc__
+    wrapper.__wrapped__ = func
+
+    return wrapper
+
+
 class TwitchApp:
     """
         Represents a twitch application
     """
 
-    __slots__ = ("_cid", "_secret", "_redirect", "_oauths", "session", "_users")
+    __slots__ = ("_cid", "_secret", "_redirect", "_oauths", "session", "_users", "_open")
 
     def __init__(self, cid, secret, redirect="http://localhost"):
         """
@@ -50,6 +69,7 @@ class TwitchApp:
         self._redirect = redirect
         self._oauths = {}
         self._users = {}
+        self._open = False
         self.session = None
 
     @property
@@ -72,9 +92,10 @@ class TwitchApp:
         """
             Open a new application ClientSession
         """
-        if self.session is not None:
+        if self._open:
             await self.session.close()
         self.session = aiohttp.ClientSession()
+        self._open = True
 
     def _get_token(self, name):
         """
@@ -84,10 +105,9 @@ class TwitchApp:
         """
         oauth = self._oauths.get(name, None)
         if oauth is not None:
-            oauth = oauth.token
+            return oauth.token
         else:
-            oauth = name
-        return oauth
+            return name
 
     def build_v5_headers(self, name):
         """
@@ -116,13 +136,34 @@ class TwitchApp:
                 "Client-ID": self._cid
             }
 
+    @needs_open
+    async def get_helix(self, endpoint, auth=None, **kwargs):
+        """
+            Get a given helix endpoint, with arbitrary kwargs
+        :param endpoint: Endpoint to get
+        :param auth: Name of the user to authenticate as
+        :param kwargs: Arguments to the endpoint
+        :return: JSON result of endpoint call
+        """
+        headers = self.build_helix_headers(auth)
+        params = multidict.MultiDict()
+        for key, value in kwargs:
+            if isinstance(value, (list, tuple)):
+                for item in value:
+                    params[key] = item
+            else:
+                params[key] = value
+        async with self.session.get(const.HELIX + endpoint, headers=headers, params=params) as response:
+            result = json.loads(await response.text())
+            # TODO: Handle ratelimits
+        return result
+
+    @needs_open
     async def get_oauth(self, code):
         """
             Get the OAuth data with the code given to us by twitch
         :param code: OAuth flow code returned by twitch
         """
-        if self.session is None:
-            self.session = aiohttp.ClientSession()
         params = {
             "client_id": self._cid,
             "client_secret": self._secret,
@@ -132,6 +173,7 @@ class TwitchApp:
         }
         async with self.session.post(const.OAUTH + "token", params=params) as response:
             result = json.loads(await response.text())
+            # TODO: Error handling
             oauth = types.OAuth(result, self)
             await self._get_user_oauth(oauth)
 
@@ -140,30 +182,49 @@ class TwitchApp:
             Get the user associated with a new OAuth and save the OAuth in the internal state
         :param oauth: OAuth to get associated user
         """
-        headers = self.build_helix_headers(oauth.token)
-        async with self.session.get(const.HELIX + "users", headers=headers) as response:
-            result = json.loads(await response.text())
-            data = result["data"]
-            for item in data:
-                self._oauths[item["login"]] = oauth
+        result = await self.get_helix("users", name=oauth.token)
+        data = result["data"]
+        for item in data:
+            self._oauths[item["login"]] = oauth
 
-    async def get_user(self, name):
+    async def get_user(self, id=None, login=None):
         """
             Get the Twitch User associated with a given name
-        :param name: Name of the twitch User to get
+        :param id: List of user id's to get
+        :param login: List of usernames to get
         :return: Twitch User
         """
-        if self.session is None:
-            self.session = aiohttp.ClientSession()
-        user = self._users.get(name)
-        if user is not None:
-            return user
-        async with self.session.get(const.KRAKEN + "users?login=" + name,
-                                    headers=self.build_v5_headers(name)) as response:
-            result = json.loads(await response.text())
-            user = types.User(result["users"][0])
+        kwargs = {}
+        if id is not None:
+            kwargs["id"] = id
+        if login is not None:
+            kwargs["login"] = login
+        result = await self.get_helix("users", **kwargs)
+        users = result["data"]
+        user = None
+        for user in users:
+            user = types.User(user)
             self._users[user.name] = user
-            return user
+        return user
+
+    # async def get_user(self, name):
+    #     if self.session is None:
+    #         self.session = aiohttp.ClientSession()
+    #     user = self._users.get(name)
+    #     if user is not None:
+    #         return user
+    #     async with self.session.get(const.KRAKEN + "users?login=" + name,
+    #                                 headers=self.build_v5_headers(name)) as response:
+    #         result = json.loads(await response.text())
+    #         user = types.User(result["users"][0])
+    #         self._users[user.name] = user
+    #         return user
+
+    async def get_all_subs(self, name):
+        user = await self.get_user(login=name)
+        total = None
+        offset = 0
+        out = []
 
     async def get_all_subs(self, name):
         """
@@ -171,7 +232,7 @@ class TwitchApp:
         :param name: Name of the user to get subs of
         :return: List of Subscribers to the given user
         """
-        user = await self.get_user(name)
+        user = await self.get_user(login=name)
         total = None
         offset = 0
         out = []

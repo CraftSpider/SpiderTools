@@ -66,7 +66,7 @@ class NanoClient:
         status, data = await self.make_request("/fundometer", "GET")
         return types.Funds(data)
 
-    async def get_user(self, username, include):
+    async def get_user(self, username, include=()):
         if username in self._user_ids:
             id = self._user_ids[username]
         else:

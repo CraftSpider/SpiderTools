@@ -1,5 +1,5 @@
 
-from typing import Dict, Type, Any, Optional, List
+from typing import Dict, Type, Any, Optional, List, NoReturn
 import abc
 import enum
 import datetime as dt
@@ -8,6 +8,7 @@ import spidertools.common.nano.state as state
 
 def _from_iso(s: str) -> dt.datetime: ...
 
+_Null: object = ...
 
 class NanoObj:
 
@@ -214,6 +215,9 @@ class NanoProject(NanoObj):
 
     async def get_challenges(self) -> List['NanoChallenge']: ...
 
+    async def edit_details(self, *, title: Optional[str] = ..., unit_type: Optional[int] = ..., excerpt: Optional[str] = ..., summary: Optional[str] = ..., pinterest: Optional[str] = ...,
+                           playlist: Optional[str] = ..., privacy: PrivacyOptions = ..., primary: bool = ..., status: Optional[str] = ..., cover: Optional[str] = ...) -> None: ...
+
 class NanoFavoriteBook(NanoObj):
 
     TYPE: str = ...
@@ -399,6 +403,8 @@ class NanoProjectChallenge(NanoObj):
     async def get_project_sessions(self) -> List['NanoProjectSession']: ...
 
     async def get_user_badges(self) -> List['NanoUserBadge']: ...
+
+    async def get_stats(self) -> NoReturn: ...
 
 class NanoChallenge(NanoObj):
 
