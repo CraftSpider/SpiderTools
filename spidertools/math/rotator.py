@@ -141,4 +141,4 @@ class Rotator:
         if end is None:
             end = start
             start = vector.Vector3.UNIT_X
-        # TODO
+        raise NotImplementedError()  # TODO
