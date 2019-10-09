@@ -15,6 +15,7 @@ on all subsequent requests.
 ## Known Types/Endpoints
 
 ### Base URL:
+
 `https://api.nanowrimo.org/`
 
 ### General Forms:
@@ -85,6 +86,7 @@ Response is given in JSON. Most responses use the common type request format, th
 user their own response formats. Known formats are listed below.
 
 ### Type Request
+
 ```json
 {
   "data": Object,
@@ -96,6 +98,7 @@ user their own response formats. Known formats are listed below.
 ```
 
 ### Object
+
 ```json
 {
   "id": "{id}",
@@ -127,6 +130,7 @@ user their own response formats. Known formats are listed below.
 ```
 
 ### Sign In
+
 ```json
 {
   "auth_token": "{token}"
@@ -134,6 +138,7 @@ user their own response formats. Known formats are listed below.
 ```
 
 ### Error
+
 ```json
 {
   "error": "{errmsg}"
@@ -141,6 +146,7 @@ user their own response formats. Known formats are listed below.
 ```
 
 ### Fundometer
+
 ```json
 {
   "goal": {goal},
