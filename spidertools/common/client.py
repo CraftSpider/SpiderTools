@@ -32,6 +32,8 @@ class TalosHTTPClient:
         :param args: arguments to pass on
         :param kwargs: keyword args to use and pass on
         """
+        if isinstance(kwargs.get("timeout", None), int):
+            kwargs["timeout"] = aiohttp.ClientTimeout(60)
         self.__tokens = tokens if tokens else {}
         self.nano_tries = 0
         self.last_guild_count = 0
