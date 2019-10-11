@@ -17,7 +17,7 @@ class TalosHTTPClient:
         and automatically handling various tokens for those sites.
     """
 
-    __slots__ = ("nano_tries", "last_guild_count", "__tokens", "client")
+    __slots__ = ("nano_tries", "last_guild_count", "__tokens", "client", "_args", "_kwargs")
 
     TALOS_URL = "https://talosbot.org/"
     BOTLIST_URL = "https://discordbots.org/"
@@ -35,7 +35,12 @@ class TalosHTTPClient:
         self.__tokens = tokens if tokens else {}
         self.nano_tries = 0
         self.last_guild_count = 0
-        self.client = aiohttp.ClientSession(*args, **kwargs)
+        self.client = None
+        self._args = args
+        self._kwargs = kwargs
+
+    async def init(self):
+        self.client = aiohttp.ClientSession(*self._args, **self._kwargs)
 
     async def close(self):
         """
