@@ -25,7 +25,7 @@ class NanoClient:
         self.client = aiohttp.ClientSession()
         await self.login(self._username, self._password)
 
-    async def make_request(self, endpoint, method, data=None):
+    async def make_request(self, endpoint, method, data=None, *, _retry=True):
         method = method.upper()
         if method == "GET":
             params = data
@@ -43,7 +43,11 @@ class NanoClient:
             status = response.status
 
             if status == 401 and not self.logged_in():
-                raise errors.InvalidLogin("Privileged request made while client not logged in")
+                try:
+                    await self.login(self._username, self._password)
+                    return await self.make_request(endpoint, method, data, _retry=False)
+                except Exception:
+                    raise errors.InvalidLogin("Privileged request made while client not logged in") from None
 
             text = await response.text()
             if text:
