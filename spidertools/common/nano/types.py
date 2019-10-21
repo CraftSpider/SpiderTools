@@ -1,6 +1,6 @@
 
 import datetime as dt
-import enum
+from .enums import *
 
 
 def _from_iso(s):
@@ -44,23 +44,17 @@ class NanoObj:
         await self._state.update(self)
 
 
-class PrivacyOptions(enum.IntEnum):
-    ANYONE = 2
-    BUDDIES = 1
-    PRIVATE = 0
-
-
 class PrivacySettings:
 
     __slots__ = ("view_buddies", "view_projects", "view_profile", "view_search", "send_messages", "visibility_regions",
                  "visibility_buddies", "visibility_activity")
 
     def __init__(self, data):
-        self.view_buddies = data["privacy-view-buddies"]
-        self.view_projects = data["privacy-view-projects"]
-        self.view_profile = data["privacy-view-profile"]
-        self.view_search = data["privacy-view-search"]
-        self.send_messages = data["privacy-send-nanomessages"]
+        self.view_buddies = PrivacyOptions(data["privacy-view-buddies"])
+        self.view_projects = PrivacyOptions(data["privacy-view-projects"])
+        self.view_profile = PrivacyOptions(data["privacy-view-profile"])
+        self.view_search = PrivacyOptions(data["privacy-view-search"])
+        self.send_messages = PrivacyOptions(data["privacy-send-nanomessages"])
         self.visibility_regions = data["privacy-visibility-regions"]
         self.visibility_buddies = data["privacy-visibility-buddy-lists"]
         self.visibility_activity = data["privacy-visibility-activity-logs"]
@@ -466,7 +460,7 @@ class NanoGroup(NanoObj):
     def _from_data(self, data):
         self.name = data["name"]
         self.slug = data["slug"]
-        self.group_type = data["group-type"]  # TODO: Group type enum
+        self.group_type = GroupType(data["group-type"])
         self.description = data["description"]
         self.longitude = data["longitude"]
         self.latitude = data["latitude"]
@@ -540,7 +534,7 @@ class NanoGroupUser(NanoObj):
         self.join_method = data["entry-method"]
         self.left_at = data["exit-at"]
         self.left_method = data["exit-method"]
-        self.group_type = data["group-type"]  # TODO: Group type enum
+        self.group_type = GroupType(data["group-type"])
         self.unread_messages = data["num-unread-messages"]
 
         self._group = None
@@ -617,7 +611,7 @@ class NanoChallenge(NanoObj):
     TYPE = "challenges"
 
     def _from_data(self, data):
-        self.event_type = data["event-type"]  # TODO: Event type enum
+        self.event_type = EventType(data["event-type"])
         self.start = data["starts-at"]
         self.end = data["ends-at"]
         self.unit_type = data["unit-type"]

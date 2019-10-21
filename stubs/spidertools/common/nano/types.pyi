@@ -1,9 +1,9 @@
 
 from typing import Dict, Type, Any, Optional, List, NoReturn
 import abc
-import enum
 import datetime as dt
 import spidertools.common.nano.state as state
+from spidertools.common.nano.enums import *
 
 
 def _from_iso(s: str) -> dt.datetime: ...
@@ -30,11 +30,6 @@ class NanoObj:
     def _from_data(self, data: Dict[str, Any]) -> None: ...
 
     async def update(self) -> None: ...
-
-class PrivacyOptions(enum.IntEnum):
-    ANYONE: int = enum.auto()
-    BUDDIES: int = enum.auto()
-    PRIVATE: int = enum.auto()
 
 class PrivacySettings:
 
@@ -310,7 +305,7 @@ class NanoGroup(NanoObj):
 
     name: str
     slug: str
-    group_type: int
+    group_type: GroupType
     description: str
     longitude: float
     latitude: float
@@ -362,7 +357,7 @@ class NanoGroupUser(NanoObj):
     join_method: str
     left_at: str
     left_method: str
-    group_type: int
+    group_type: GroupType
     unread_messages: int
 
     _group: Optional['NanoGroup']
@@ -410,7 +405,7 @@ class NanoChallenge(NanoObj):
 
     TYPE: str = ...
 
-    event_type: int
+    event_type: EventType
     start: str
     end: str
     unit_type: int
