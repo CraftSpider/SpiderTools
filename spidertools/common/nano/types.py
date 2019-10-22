@@ -1,4 +1,5 @@
 
+import typing
 import datetime as dt
 from .enums import *
 
@@ -9,10 +10,63 @@ def _from_iso(s):
     return dt.datetime.fromisoformat(s)
 
 
+def _from_date(s):
+    return dt.datetime.strptime(s, "%Y-%m-%d").date()
+
+
+def _from_tz(s):
+    return dt.timezone(dt.timedelta(minutes=s))
+
+
+def _is_dunder(s):
+    return s.startswith("__") and s.endswith("__")
+
+
+def _get_convert(type):
+    if type == dt.datetime:
+        return _from_iso
+    elif type == dt.date:
+        return _from_date
+    elif type == dt.timezone:
+        return _from_tz
+    else:
+        return type
+
+
 _Null = object()
 
 
-class NanoObj:
+class NanoMeta(type):
+
+    def __new__(mcs, name, bases, namespace):
+        new_namespace = {
+            "_ATTR_DATA": {}
+        }
+
+        for item in namespace:
+            if item == "TYPE" or _is_dunder(item) or not isinstance(namespace[item], str):
+                new_namespace[item] = namespace[item]
+                continue
+            kls = lambda x: x
+            if "__annotations__" in namespace and item in namespace["__annotations__"]:
+                kls = namespace["__annotations__"][item]
+            if isinstance(kls, typing._SpecialForm):
+                if (kls._name == "Union" or kls._name == "Optional") and not hasattr(kls, "__origin__"):
+                    raise AttributeError(f"NanoObj annotation (on {item}) must not be general, must specify classes.")
+            new_namespace["_ATTR_DATA"][item] = (kls, namespace[item])
+        if "__annotations__" in namespace:
+            for item in namespace["__annotations__"]:
+                if item not in new_namespace["_ATTR_DATA"]:
+                    kls = namespace["__annotations__"][item]
+                    if isinstance(kls, typing._SpecialForm):
+                        if (kls._name == "Union" or kls._name == "Optional") and not hasattr(kls, "__origin__"):
+                            raise AttributeError(f"NanoObj annotation (on {item}) must not be general, must specify classes.")
+                    new_namespace["_ATTR_DATA"][item] = (kls, item.replace("_", "-"))
+
+        return super().__new__(mcs, name, bases, new_namespace)
+
+
+class NanoObj(metaclass=NanoMeta):
 
     __slots__ = ("_state", "_relationships", "_self", "id")
 
@@ -37,14 +91,58 @@ class NanoObj:
             raise TypeError("NanoObj subclasses must provide a TYPE")
         NanoObj.TYPE_MAP[cls.TYPE] = cls
 
+    def _do_convert(self, attr, data):
+        to_try = attr[0].__args__
+
+        last_err = None
+        val = None
+        for item in to_try:
+            if item is None:
+                return None
+            else:
+                func = _get_convert(item)
+                try:
+                    if isinstance(func, type) and issubclass(func, Subdata):
+                        val = func(data)
+                    elif isinstance(func, typing._GenericAlias):
+                        val = self._do_convert(attr, data)
+                    else:
+                        val = data.get(attr[1], _Null)
+                        if val is _Null:
+                            raise AttributeError(f"Data for {self.__class__.__name__} doesn't contain attribute {attr[1]}")
+                        val = func(val)
+                    break
+                except Exception as e:
+                    last_err = e
+
+        if last_err is not None:
+            raise last_err from None
+        return val
+
     def _from_data(self, data):
-        raise NotImplementedError("Subclasses expected to implement this")
+        for name, attr in self._ATTR_DATA.items():
+            func = _get_convert(attr[0])
+
+            if isinstance(func, type) and issubclass(func, Subdata):
+                val = func(data)
+            elif isinstance(func, typing._GenericAlias):
+                val = self._do_convert(attr, data)
+            else:
+                val = data.get(attr[1], _Null)
+                if val is _Null:
+                    raise AttributeError(f"Data for {self.__class__.__name__} doesn't contain attribute {attr[1]}")
+                val = func(val)
+
+            setattr(self, name, val)
 
     async def update(self):
         await self._state.update(self)
 
 
-class PrivacySettings:
+class Subdata: ...
+
+
+class PrivacySettings(Subdata):
 
     __slots__ = ("view_buddies", "view_projects", "view_profile", "view_search", "send_messages", "visibility_regions",
                  "visibility_buddies", "visibility_activity")
@@ -60,7 +158,7 @@ class PrivacySettings:
         self.visibility_activity = data["privacy-visibility-activity-logs"]
 
 
-class NotificationSettings:
+class NotificationSettings(Subdata):
 
     __slots__ = ("buddy_requests", "buddy_activities", "buddy_messages", "ml_messages", "hq_messages",
                  "sprint_invitation", "sprint_start", "writing_reminders", "goal_milestones", "home_region_events",
@@ -80,7 +178,7 @@ class NotificationSettings:
         self.new_badges = data["notification-new-badges"]
 
 
-class EmailSettings:
+class EmailSettings(Subdata):
 
     __slots__ = ("buddy_requests", "buddy_messages", "ml_messages", "hq_messages", "blog_posts", "newsletter",
                  "home_region_events", "writing_reminders")
@@ -96,7 +194,7 @@ class EmailSettings:
         self.writing_reminders = data["email-writing-reminders"]
 
 
-class UserStats:
+class UserStats(Subdata):
 
     __slots__ = ("projects", "projects_enabled", "streak", "streak_enabled", "word_count", "word_count_enabled",
                  "wordiest", "wordiest_enabled", "writing_pace", "writing_pace_enabled", "years_done", "years_won",
@@ -132,33 +230,25 @@ class NanoUser(NanoObj):
 
     TYPE = "users"
 
-    def _from_data(self, data):
-        self.name = data["name"]
-        self.slug = data["slug"]
-        self.time_zone = data["time-zone"]
-        self.postal_code = data["postal-code"]
-        self.bio = data["bio"]
-        self.created_at = _from_iso(data["created-at"])
-        self.email = data["email"]
-        self.location = data["location"]
-        try:
-            self.privacy_settings = PrivacySettings(data)
-        except KeyError:
-            self.privacy_settings = None
-        try:
-            self.notification_settings = NotificationSettings(data)
-        except KeyError:
-            self.notification_settings = None
-        try:
-            self.email_settings = EmailSettings(data)
-        except KeyError:
-            self.email_settings = None
-        self.stats = UserStats(data)
-        self.halo = data["halo"]
-        self.laurels = data["laurels"]
-        self.avatar = data["avatar"]
-        self.plate = data["plate"]
+    name = "name"
+    slug = "slug"
+    time_zone = "time-zone"
+    postal_code = "postal-code"
+    bio = "bio"
+    created_at: dt.datetime = "created-at"
+    email = "email"
+    location = "location"
+    privacy_settings: typing.Optional[PrivacySettings]
+    notification_settings: NotificationSettings
+    email_settings: EmailSettings
+    stats: UserStats
+    halos = "halo"
+    laurels = "laurels"
+    avatar = "avatar"
+    plate = "plate"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._external_links = None
         self._favorite_books = None
         self._favorite_authors = None
@@ -244,21 +334,22 @@ class NanoProject(NanoObj):
 
     TYPE = "projects"
 
-    def _from_data(self, data):
-        self.user_id = data["user-id"]
-        self.title = data["title"]
-        self.slug = data["slug"]
-        self.unit_type = data["unit-type"]
-        self.excerpt = data["excerpt"]
-        self.created_at = _from_iso(data["created-at"])
-        self.summary = data["summary"]
-        self.pinterest = data["pinterest-url"]
-        self.playlist = data["playlist-url"]
-        self.privacy = data["privacy"]
-        self.primary = data["primary"]
-        self.status = data["status"]
-        self.cover = data["cover"]
+    user_id = "user-id"
+    title = "title"
+    slug = "slug"
+    unit_type = "unit-type"
+    excerpt = "excerpt"
+    created_at: dt.datetime = "created-at"
+    summary = "summary"
+    pinterest = "pinterest-url"
+    playlist = "playlist-url"
+    privacy = "privacy"
+    primary = "primary"
+    status = "status"
+    cover = "cover"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._genres = None
         self._project_challenges = None
         self._project_sessions = None
@@ -338,10 +429,11 @@ class NanoFavoriteBook(NanoObj):
 
     TYPE = "favorite-books"
 
-    def _from_data(self, data):
-        self.title = data["title"]
-        self.user_id = data["user-id"]
+    title = "title"
+    user_id = "user-id"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
 
     async def get_user(self):
@@ -354,10 +446,11 @@ class NanoFavoriteAuthor(NanoObj):
 
     TYPE = "favorite-authors"
 
-    def _from_data(self, data):
-        self.name = data["name"]
-        self.user_id = data["user-id"]
+    name = "name"
+    user_id = "user-id"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
 
     async def get_user(self):
@@ -370,12 +463,13 @@ class NanoUserBadge(NanoObj):
 
     TYPE = "user-badges"
 
-    def _from_data(self, data):
-        self.badge_id = data["badge-id"]
-        self.user_id = data["user-id"]
-        self.project_challenge_id = data["project-challenge-id"]
-        self.created_at = _from_iso(data["created-at"])
+    badge_id = "badge-id"
+    user_id = "user-id"
+    project_challenge_id = "project-challenge-id"
+    created_at: dt.datetime = "created-at"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
         self._badge = None
 
@@ -394,28 +488,28 @@ class NanoBadge(NanoObj):
 
     TYPE = "badges"
 
-    def _from_data(self, data):
-        self.title = data["title"]
-        self.list_order = data["list-order"]
-        self.suborder = data["suborder"]
-        self.badge_type = data["badge-type"]
-        self.adheres_to = data["adheres-to"]
-        self.description = data["description"]
-        self.awarded_description = data["awarded-description"]
-        self.generic_description = data["generic-description"]
-        self.active = data["active"]
-        self.unawarded = data["unawarded"]
-        self.awarded = data["awarded"]
+    title = "title"
+    list_order = "list-order"
+    suborder = "suborder"
+    badge_type = "badge-type"
+    adheres_to = "adheres-to"
+    description = "description"
+    awarded_description = "awarded-description"
+    generic_description = "generic-description"
+    active = "active"
+    unawarded = "unawarded"
+    awarded = "awarded"
 
 
 class NanoGenre(NanoObj):
 
     TYPE = "genres"
 
-    def _from_data(self, data):
-        self.name = data["name"]
-        self.user_id = data["user-id"]
+    name = "name"
+    user_id = "user-id"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
 
     async def get_user(self):
@@ -428,17 +522,18 @@ class NanoProjectSession(NanoObj):
 
     TYPE = "project-sessions"
 
-    def _from_data(self, data):
-        self.start = data["start"]
-        self.end = data["end"]
-        self.count = data["count"]
-        self.how = data["how"]
-        self.where = data["where"]
-        self.feeling = data["feeling"]
-        self.created_at = _from_iso(data["created-at"])
-        self.unit_type = data["unit-type"]
-        self.project_id = data["project-id"]
+    start = "start"
+    end = "end"
+    count = "count"
+    how = "how"
+    where = "where"
+    feeling = "feeling"
+    created_at: dt.datetime = "created-at"
+    unit_type = "unit-type"  # TODO: Unit Type Enum
+    project_id = "project-id"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._project = None
         self._project_challenge = None
 
@@ -457,25 +552,26 @@ class NanoGroup(NanoObj):
 
     TYPE = "groups"
 
-    def _from_data(self, data):
-        self.name = data["name"]
-        self.slug = data["slug"]
-        self.group_type = GroupType(data["group-type"])
-        self.description = data["description"]
-        self.longitude = data["longitude"]
-        self.latitude = data["latitude"]
-        self.member_count = data["member-count"]
-        self.user_id = data["user_id"]
-        self.group_id = data["group_id"]
-        self.time_zone = data["time_zone"]
-        self.created_at = _from_iso(data["created-at"])
-        self.updated_at = _from_iso(data["updated-at"])
-        self.start_dt = data["start_dt"]
-        self.end_dt = data["end-dt"]
-        self.approved_by_id = data["approved-by-id"]
-        self.url = data["url"]
-        self.plate = data["plate"]
+    name = "name"
+    slug = "slug"
+    group_type: GroupType = "group-type"
+    description = "description"
+    longitude = "longitude"
+    latitude = "latitude"
+    member_count = "member-count"
+    user_id = "user-id"
+    group_id = "group-id"
+    time_zone = "time-zone"
+    created_at: dt.datetime = "created-at"
+    updated_at: dt.datetime = "updated-at"
+    start_dt = "start-dt"
+    end_dt = "end-dt"
+    approved_by_id = "approved-by-id"
+    url = "url"
+    plate = "plate"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
         self._external_links = None
         self._users = None
@@ -520,23 +616,24 @@ class NanoGroupUser(NanoObj):
 
     TYPE = "group-users"
 
-    def _from_data(self, data):
-        self.created_at = _from_iso(data["created-at"])
-        self.updated_at = _from_iso(data["updated-at"])
-        self.group_code_id = data["group-code-id"]
-        self.is_admin = data["is-admin"]
-        self.invited_by_id = data["invited-by-id"]
-        self.invitation_accepted = data["invitation-accepted"]
-        self.group_id = data["group-id"]
-        self.user_id = data["user_id"]
-        self.primary = data["primary"]
-        self.joined_at = data["entry-at"]
-        self.join_method = data["entry-method"]
-        self.left_at = data["exit-at"]
-        self.left_method = data["exit-method"]
-        self.group_type = GroupType(data["group-type"])
-        self.unread_messages = data["num-unread-messages"]
+    created_at: dt.datetime = "created-at"
+    updated_at: dt.datetime = "updated-at"
+    group_code_id = "group-code-id"
+    is_admin = "is-admin"
+    invited_by_id = "invited-by-id"
+    invitation_accepted = "invitation-accepted"
+    group_id = "group-id"
+    user_id = "user-id"
+    primary = "primary"
+    joined_at = "entry-at"
+    join_method: EntryMethod = "entry-method"
+    left_at = "exit-at"
+    left_method = "exit-method"  # TODO: Exit method enum
+    group_type: GroupType = "group-type"
+    unread_messages = "num-unread-messages"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._group = None
         self._user = None
         self._inviter = None
@@ -563,19 +660,20 @@ class NanoProjectChallenge(NanoObj):
 
     TYPE = "project-challenges"
 
-    def _from_data(self, data):
-        self.project_id = data["project-id"]
-        self.starts_at = data["starts-at"]
-        self.ends_at = data["ends-at"]
-        self.challenge_id = data["challenge-id"]
-        self.start_count = data["start-count"]
-        self.current_count = data["current-count"]
-        self.goal = data["goal"]
-        self.unit_type = data["unit-type"]
-        self.name = data["name"]
-        self.nano_event = data["nano-event"]
-        self.latest_count = data["latest-count"]
+    project_id = "project-id"
+    starts_at: dt.date = "starts-at"
+    ends_at: dt.date = "ends-at"
+    challenge_id = "challenge-id"
+    start_count = "start-count"
+    current_count = "current-count"
+    goal = "goal"
+    unit_type = "unit-type"  # TODO: Unit type enum
+    name = "name"
+    nano_event = "nano-event"
+    latest_count = "latest-count"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._project = None
         self._challenge = None
         self._project_sessions = None
@@ -610,19 +708,20 @@ class NanoChallenge(NanoObj):
 
     TYPE = "challenges"
 
-    def _from_data(self, data):
-        self.event_type = EventType(data["event-type"])
-        self.start = data["starts-at"]
-        self.end = data["ends-at"]
-        self.unit_type = data["unit-type"]
-        self.default_goal = data["default-goal"]
-        self.flexible_goal = data["flexible-goal"]
-        self.writing_type = data["writing-type"]  # TODO: Writing type enum
-        self.user_id = data["user-id"]
-        self.name = data["name"]
-        self.win_starts = data["win-allowed-at"]
-        self.prep_starts = data["prep-starts-at"]
+    event_type: EventType = "event-type"
+    start: dt.date = "starts-at"
+    end: dt.date = "ends-at"
+    unit_type = "unit-type"  # TODO: Unit type enum
+    default_goal = "default-goal"
+    flexible_goal = "flexible-goal"
+    writing_type = "writing-type"  # TODO: Writing type enum
+    user_id = "user-id"
+    name = "name"
+    win_starts: dt.date = "win-allowed-at"
+    prep_starts: typing.Optional[dt.date] = "prep-starts-at"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
 
     async def get_user(self):
@@ -637,17 +736,18 @@ class NanoMessage(NanoObj):
 
     TYPE = "nanomessages"
 
-    def _from_data(self, data):
-        self.user_id = data["user-id"]
-        self.group_id = data["group-id"]
-        self.content = data["content"]
-        self.created_at = _from_iso(data["created-at"])
-        self.updated_at = _from_iso(data["updated-at"])
-        self.official = data["official"]
-        self.avatar_url = data["sender-avatar-url"]
-        self.sender_name = data["sender-name"]
-        self.sender_slug = data["sender-slug"]
+    user_id = "user-id"
+    group_id = "group-id"
+    content = "content"
+    created_at: dt.datetime = "created-at"
+    updated_at: dt.datetime = "updated-at"
+    official = "official"
+    avatar_url = "sender-avatar-url"
+    sender_name = "sender-name"
+    sender_slug = "sender-slug"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
         self._group = None
 
@@ -666,10 +766,11 @@ class NanoExternalLink(NanoObj):
 
     TYPE = "external-links"
 
-    def _from_data(self, data):
-        self.url = data["url"]
-        self.user_id = data["user-id"]
+    url = "url"
+    user_id = "user-id"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._user = None
 
     async def get_user(self):
@@ -682,10 +783,11 @@ class NanoGroupExternalLink(NanoObj):
 
     TYPE = "group-external-links"
 
-    def _from_data(self, data):
-        self.url = data["url"]
-        self.group_id = data["group-id"]
+    url = "url"
+    group_id = "group-id"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._group = None
 
     async def get_group(self):
@@ -698,33 +800,33 @@ class NanoLocation(NanoObj):
 
     TYPE = "locations"
 
-    def _from_data(self, data):
-        self.name = data["name"]
-        self.street1 = data["street1"]
-        self.street2 = data["street2"]
-        self.city = data["city"]
-        self.state = data["state"]
-        self.country = data["country"]
-        self.postal_code = data["postal-code"]
-        self.longitude = data["longitude"]
-        self.latitude = data["latitude"]
-        self.formatted_address = data["formatted-address"]
-        self.map_url = data["map-url"]
-        self.county = data["county"]
-        self.neighborhood = data["neighborhood"]
-        self.municipality = data["municipality"]
-        self.utc_offset = data["utc-offset"]
+    name = "name"
+    street1 = "street1"
+    street2 = "street2"
+    city = "city"
+    state = "state"
+    country = "country"
+    postal_code = "postal-code"
+    longitude = "longitude"
+    latitude = "latitude"
+    formatted_address = "formatted-address"
+    map_url = "map-url"
+    county = "county"
+    neighborhood = "neighborhood"
+    municipality = "municipality"
+    utc_offset: dt.timezone = "utc-offset"
 
 
 class NanoLocationGroup(NanoObj):
 
     TYPE = "location-groups"
 
-    def _from_data(self, data):
-        self.location_id = data["location-id"]
-        self.group_id = data["group-id"]
-        self.primary = data["primary"]
+    location_id = "location-id"
+    group_id = "group-id"
+    primary = "primary"
 
+    def _from_data(self, data):
+        super()._from_data(data)
         self._location = None
         self._group = None
 

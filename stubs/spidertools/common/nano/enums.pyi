@@ -14,3 +14,8 @@ class GroupType(enum.Enum):
 class EventType(enum.IntEnum):
     NANOWRIMO: int = enum.auto()
     CAMP_NANO: int = enum.auto()
+
+class EntryMethod(enum.Enum):
+    JOINED: str = enum.auto()
+    CREATED: str = enum.auto()
+    INVITED: str = enum.auto()

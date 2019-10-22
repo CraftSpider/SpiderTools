@@ -1,12 +1,12 @@
 
-from typing import Optional, Dict, List, Union, Sequence, Any
+from typing import Tuple, Dict, List, Union, Sequence, Any
 from spidertools.common.element import Document, Element
 import aiohttp
 import io
 
 class TalosHTTPClient:
 
-    __slots__ = ("nano_tries", "last_guild_count", "__tokens", "client")
+    __slots__ = ("nano_tries", "last_guild_count", "__tokens", "client", "_args", "_kwargs")
 
     TALOS_URL: str = ...
     BOTLIST_URL: str = ...
@@ -19,9 +19,13 @@ class TalosHTTPClient:
     last_guild_count: int
     __tokens: Dict[str, Union[str, Sequence[str]]]
     client: aiohttp.ClientSession
+    _args: Dict[str, Any]
+    _kwargs: Tuple[Any, ...]
 
     # noinspection PyMissingConstructor
     def __init__(self, *args: Any, tokens: Dict[str, Union[str, Sequence[str]]] = ..., **kwargs: Any) -> None: ...
+
+    async def init(self) -> None: ...
 
     async def close(self) -> None: ...
 

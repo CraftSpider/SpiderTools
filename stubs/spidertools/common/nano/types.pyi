@@ -1,6 +1,5 @@
 
-from typing import Dict, Type, Any, Optional, List, NoReturn
-import abc
+from typing import Dict, Type, Any, Optional, List, NoReturn, Tuple, _GenericAlias, Callable
 import datetime as dt
 import spidertools.common.nano.state as state
 from spidertools.common.nano.enums import *
@@ -8,14 +7,28 @@ from spidertools.common.nano.enums import *
 
 def _from_iso(s: str) -> dt.datetime: ...
 
+def _from_date(s: str) -> dt.date: ...
+
+def _from_tz(s: int) -> dt.timezone: ...
+
+def _is_dunder(s: str) -> bool: ...
+
+def _get_convert(type: type) -> Callable[[Any], Any]: ...
+
 _Null: object = ...
 
-class NanoObj:
+class NanoMeta(type):
+
+    def __new__(mcs, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any]) -> 'NanoMeta':
+        return super().__new__(mcs, name, bases, namespace)
+
+class NanoObj(metaclass=NanoMeta):
 
     __slots__ = ("_state", "_relationships", "_self", "id")
 
     TYPE_MAP: Dict[str, Type['NanoObj']] = ...
     TYPE: str
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     _state: state.NanoState
     _relationships: Dict[str, str]
@@ -26,12 +39,15 @@ class NanoObj:
 
     def __init_subclass__(cls: Type['NanoObj'], **kwargs: Any) -> None: ...
 
-    @abc.abstractmethod
+    def _do_convert(self, attr: _GenericAlias, data: Dict[str, Any]): ...
+
     def _from_data(self, data: Dict[str, Any]) -> None: ...
 
     async def update(self) -> None: ...
 
-class PrivacySettings:
+class Subdata: ...
+
+class PrivacySettings(Subdata):
 
     __slots__ = ("view_buddies", "view_projects", "view_profile", "view_search", "send_messages", "visibility_regions",
                  "visibility_buddies", "visibility_activity")
@@ -47,7 +63,7 @@ class PrivacySettings:
 
     def __init__(self, data: Dict[str, Any]) -> None: ...
 
-class NotificationSettings:
+class NotificationSettings(Subdata):
 
     __slots__ = ("buddy_requests", "buddy_activities", "buddy_messages", "ml_messages", "hq_messages",
                  "sprint_invitation", "sprint_start", "writing_reminders", "goal_milestones", "home_region_events",
@@ -65,7 +81,7 @@ class NotificationSettings:
     home_region_events: bool
     new_badges: bool
 
-class EmailSettings:
+class EmailSettings(Subdata):
 
     __slots__ = ("buddy_requests", "buddy_messages", "ml_messages", "hq_messages", "blog_posts", "newsletter",
                  "home_region_events", "writing_reminders")
@@ -82,7 +98,7 @@ class EmailSettings:
     def __init__(self, data: Dict[str, Any]) -> None: ...
 
 
-class UserStats:
+class UserStats(Subdata):
 
     __slots__ = ("projects", "projects_enabled", "streak", "streak_enabled", "word_count", "word_count_enabled",
                  "wordiest", "wordiest_enabled", "writing_pace", "writing_pace_enabled", "years_done", "years_won",
@@ -118,6 +134,7 @@ class Funds:
 class NanoUser(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     name: str
     slug: str
@@ -179,6 +196,7 @@ class NanoUser(NanoObj):
 class NanoProject(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     user_id: int
     title: str
@@ -216,6 +234,7 @@ class NanoProject(NanoObj):
 class NanoFavoriteBook(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     title: str
     user_id: int
@@ -227,6 +246,7 @@ class NanoFavoriteBook(NanoObj):
 class NanoFavoriteAuthor(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     name: str
     user_id: int
@@ -238,6 +258,7 @@ class NanoFavoriteAuthor(NanoObj):
 class NanoUserBadge(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     badge_id: int
     user_id: int
@@ -254,6 +275,7 @@ class NanoUserBadge(NanoObj):
 class NanoBadge(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     title: str
     list_order: int
@@ -270,6 +292,7 @@ class NanoBadge(NanoObj):
 class NanoGenre(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     name: str
     user_id: int
@@ -281,6 +304,7 @@ class NanoGenre(NanoObj):
 class NanoProjectSession(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     start: str
     end: str
@@ -302,6 +326,7 @@ class NanoProjectSession(NanoObj):
 class NanoGroup(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     name: str
     slug: str
@@ -343,6 +368,7 @@ class NanoGroup(NanoObj):
 class NanoGroupUser(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     created_at: dt.datetime
     updated_at: dt.datetime
@@ -373,6 +399,7 @@ class NanoGroupUser(NanoObj):
 class NanoProjectChallenge(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     project_id: int
     starts_at: str
@@ -404,6 +431,7 @@ class NanoProjectChallenge(NanoObj):
 class NanoChallenge(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     event_type: EventType
     start: str
@@ -424,6 +452,7 @@ class NanoChallenge(NanoObj):
 class NanoMessage(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     user_id: int
     group_id: int
@@ -445,6 +474,7 @@ class NanoMessage(NanoObj):
 class NanoExternalLink(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     url: str
     user_id: int
@@ -456,6 +486,7 @@ class NanoExternalLink(NanoObj):
 class NanoGroupExternalLink(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     url: str
     group_id: int
@@ -467,6 +498,7 @@ class NanoGroupExternalLink(NanoObj):
 class NanoLocation(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     name: str
     street1: str
@@ -487,6 +519,7 @@ class NanoLocation(NanoObj):
 class NanoLocationGroup(NanoObj):
 
     TYPE: str = ...
+    _ATTR_DATA: Dict[str, Tuple[type, str]] = ...
 
     location_id: int
     group_id: int

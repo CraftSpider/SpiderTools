@@ -17,3 +17,9 @@ class GroupType(enum.Enum):
 class EventType(enum.IntEnum):
     NANOWRIMO = 0
     CAMP_NANO = 1
+
+
+class EntryMethod(enum.Enum):
+    JOINED = "join"
+    CREATED = "creator"
+    INVITED = "invited"
