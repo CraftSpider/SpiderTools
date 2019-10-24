@@ -9,6 +9,10 @@ class NanoException(Exception):
 
     def _set_message(self, *args: Any) -> None: ...
 
+class MissingPermissions(NanoException):
+
+    def __init__(self, msg: str) -> None: ...
+
 class InvalidLogin(NanoException):
 
     def __init__(self, msg: str) -> None: ...

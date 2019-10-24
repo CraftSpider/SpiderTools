@@ -128,7 +128,7 @@ class NanoObj(metaclass=NanoMeta):
             val = self._do_convert(attr[0], attr[1], data)
             setattr(self, name, val)
 
-    def _to_json(self, type, val, data):  # TODO: Handle complex types
+    def _to_json(self, cls, val, data):  # TODO: Handle complex types
         if isinstance(val, Subdata):
             data.update(val._to_data())
             return _Null
