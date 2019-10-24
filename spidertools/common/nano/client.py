@@ -25,7 +25,7 @@ class NanoClient:
         self.client = aiohttp.ClientSession()
         await self.login(self._username, self._password)
 
-    async def make_request(self, endpoint, method, data=None, *, _retry=True):
+    async def make_request(self, endpoint, method, data=None, *, _handle=True):
         method = method.upper()
         if method == "GET":
             params = data
@@ -41,23 +41,32 @@ class NanoClient:
         async with self.client.request(method, self.URL + endpoint, params=params, json=json_data, headers=headers)\
                 as response:
             status = response.status
-
-            if status == 401 and not self.logged_in():
-                try:
-                    await self.login(self._username, self._password)
-                    return await self.make_request(endpoint, method, data, _retry=False)
-                except Exception:
-                    raise errors.InvalidLogin("Privileged request made while client not logged in") from None
-
             text = await response.text()
             if text:
-                out = json.loads(text)
+                data = json.loads(text)
             else:
-                out = None
-            return status, out
+                data = None
+
+            if _handle:
+                if status == 401:
+                    if not self.logged_in():
+                        raise errors.MissingPermissions("Privileged request made while client not logged in")
+                    await self.login(self._username, self._password)
+                    status, data = await self.make_request(endpoint, method, data, _handle=False)
+                    if status == 401:
+                        if "error" in data:
+                            msg = data["error"]
+                        else:
+                            msg = text
+                        raise errors.MissingPermissions(msg) from None
+                    return status, data
+
+            return status, data
 
     async def login(self, username, password):
-        status, data = await self.make_request("/users/sign_in", "POST", {"identifier": username, "password": password})
+        status, data = await self.make_request(
+            "/users/sign_in", "POST", {"identifier": username, "password": password}, _handle=False
+        )
         if status == 401:
             raise errors.InvalidLogin(data["error"])
         self.__auth_token = data["auth_token"]

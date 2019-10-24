@@ -91,8 +91,21 @@ class NanoObj(metaclass=NanoMeta):
             raise TypeError("NanoObj subclasses must provide a TYPE")
         NanoObj.TYPE_MAP[cls.TYPE] = cls
 
-    def _do_convert(self, attr, data):
-        to_try = attr[0].__args__
+    def _do_convert(self, cls, name, data):
+        func = _get_convert(cls)
+        if isinstance(func, type) and issubclass(func, Subdata):
+            val = func(data)
+        elif isinstance(func, typing._GenericAlias):
+            val = self._generic_convert(func, name, data)
+        else:
+            val = data.get(name, _Null)
+            if val is _Null:
+                raise AttributeError(f"Data for {self.__class__.__name__} doesn't contain attribute {attr[1]}")
+            val = func(val)
+        return val
+
+    def _generic_convert(self, cls, name, data):
+        to_try = cls.__args__
 
         last_err = None
         val = None
@@ -100,17 +113,8 @@ class NanoObj(metaclass=NanoMeta):
             if item is None:
                 return None
             else:
-                func = _get_convert(item)
                 try:
-                    if isinstance(func, type) and issubclass(func, Subdata):
-                        val = func(data)
-                    elif isinstance(func, typing._GenericAlias):
-                        val = self._do_convert(attr, data)
-                    else:
-                        val = data.get(attr[1], _Null)
-                        if val is _Null:
-                            raise AttributeError(f"Data for {self.__class__.__name__} doesn't contain attribute {attr[1]}")
-                        val = func(val)
+                    val = self._do_convert(item, name, data)
                     break
                 except Exception as e:
                     last_err = e
@@ -121,25 +125,43 @@ class NanoObj(metaclass=NanoMeta):
 
     def _from_data(self, data):
         for name, attr in self._ATTR_DATA.items():
-            func = _get_convert(attr[0])
-
-            if isinstance(func, type) and issubclass(func, Subdata):
-                val = func(data)
-            elif isinstance(func, typing._GenericAlias):
-                val = self._do_convert(attr, data)
-            else:
-                val = data.get(attr[1], _Null)
-                if val is _Null:
-                    raise AttributeError(f"Data for {self.__class__.__name__} doesn't contain attribute {attr[1]}")
-                val = func(val)
-
+            val = self._do_convert(attr[0], attr[1], data)
             setattr(self, name, val)
+
+    def _to_json(self, type, val, data):  # TODO: Handle complex types
+        if isinstance(val, Subdata):
+            data.update(val._to_data())
+            return _Null
+        return val
+
+    def _to_data(self):
+        out = {}
+        for name, attr in self._ATTR_DATA.items():
+            val = getattr(self, name)
+            val = self._to_json(attr[0], val, out)
+            if val is not _Null:
+                out[attr[1]] = val
+        return out
+
+    async def edit(self, **kwargs):
+        attrs = self._to_data()
+        attrs.update(kwargs)
+        data = {
+            "id": self.id,
+            "type": self.TYPE,
+            "attributes": attrs
+        }
+        #  TODO: make/break relationships?
+        await self._state.patch_obj(self, data)
 
     async def update(self):
         await self._state.update(self)
 
 
-class Subdata: ...
+class Subdata:
+
+    def _to_data(self):
+        return {}  # TODO
 
 
 class PrivacySettings(Subdata):

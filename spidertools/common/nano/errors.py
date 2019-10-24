@@ -21,6 +21,19 @@ class NanoException(Exception):
         super().__init__(args)
 
 
+class MissingPermissions(NanoException):
+    """
+        Thrown if a request is made that the logged-in user doesn't have privileges for
+    """
+
+    def __init__(self, msg):
+        """
+            Initialize exception. Take the permission failure message
+        :param msg: Message returned by failure
+        """
+        self._set_message(msg)
+
+
 class InvalidLogin(NanoException):
     """
         Thrown if the client couldn't log-in to the site
