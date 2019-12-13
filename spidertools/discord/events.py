@@ -11,10 +11,11 @@ from . import errors
 log = logging.getLogger("talos.dutils.events")
 
 
-def align_period(period):
+def align_period(period, start_time: dt.datetime=None):
     """
         Align a period for its next execution. From now, push forward the period, then down to the nearest 0.
     :param period: Period to return alignment for
+    :param start_time: Time the event loop started, used to align the period correctly
     :return: delta till when period should next run
     """
     now = dt.datetime.now()
@@ -37,7 +38,20 @@ def align_period(period):
     minutes += period.minutes - 1 if period.minutes else 0
     seconds += period.seconds - 1 if period.seconds else 0
 
-    return dt.timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+    result = dt.timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+    if start_time is not None:
+        prev = start_time.replace(second=0, microsecond=0)
+        if period.days:
+            prev.replace(day=0)
+            prev.replace(hour=0)
+            prev.replace(minute=0)
+        elif period.hours:
+            prev.replace(hour=0)
+            prev.replace(minute=0)
+        elif period.minutes:
+            prev.replace(minute=0)
+        result += (start_time - prev)
+    return result
 
 
 class EventPeriod(data.SqlConvertable):
@@ -284,7 +298,7 @@ class EventLoop:
                     utils.log_error(log, logging.ERROR, e, f"Stopping event loop {self.name}:")
                     self._task = None
                     return
-            delta = align_period(self.period)
+            delta = align_period(self.period, self.start_time)
             await asyncio.sleep(delta.total_seconds())
 
     def stop(self):
