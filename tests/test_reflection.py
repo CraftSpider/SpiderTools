@@ -39,6 +39,7 @@ def _gen_test_id(val):
 SKIP_NAMES = {"__doc__", "__annotations__", "__cached__", "__cog_commands__", "__cog_listeners__", "__cog_name__",
               "__cog_settings__"}
 
+
 @pytest.mark.parametrize("val", reflection.walk_all_items(".", skip_dirs=SKIP_DIRS, skip_names=SKIP_NAMES),
                          ids=_gen_test_id)
 def test_stub(val):
