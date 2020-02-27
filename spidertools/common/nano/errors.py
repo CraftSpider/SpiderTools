@@ -55,18 +55,28 @@ class NotFound(NanoException):
     TYPE_MAP = {}
 
     def __new__(cls, t, msg):
+        """
+            Initialize the exception. Will pick a more specific subclass, if one exists
+        :param t: Type of the object that couldn't be found
+        :param msg: Name of the object that couldn't be found
+        """
         if issubclass(t, types.NanoObj):
             return super().__new__(cls.TYPE_MAP[t.TYPE])
         return super().__new__(cls)
 
     def __init__(self, t, msg):
         """
-            Initialize exception. Takes the username that couldn't be found as an input
-        :param obj: Username of the User that couldn't be found
+            Initialize exception. Takes the object type that couldn't be found, and the exception message
+        :param t: Type of the object that couldn't be found
+        :param msg: Name of the object that couldn't be found
         """
         self._set_message(msg)
 
     def __init_subclass__(cls, **kwargs):
+        """
+            Handle NotFound subclasses, adding them to the automatic type mapping
+        :param kwargs: Keyword arguments passed to subclass
+        """
         NotFound.TYPE_MAP[cls.TYPE] = cls
 
 

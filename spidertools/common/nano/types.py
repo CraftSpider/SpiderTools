@@ -5,40 +5,75 @@ from .enums import *
 
 
 def _from_iso(s):
+    """
+        Convert an ISO string to a datetime object, with Z extension supported
+    :param s: String to convert
+    :return: Datetime object of string
+    """
     if s[-1] == "Z":
         s = s[:-1] + "+00:00"
     return dt.datetime.fromisoformat(s)
 
 
 def _from_date(s):
+    """
+        Convert a string in the common Nano date format to a date object
+    :param s: String to convert
+    :return: Date object of string
+    """
     return dt.datetime.strptime(s, "%Y-%m-%d").date()
 
 
 def _from_tz(s):
+    """
+        Return a timezone with a given number of minutes offset
+    :param s: Offset in minutes
+    :return: Timezone with given offset
+    """
     return dt.timezone(dt.timedelta(minutes=s))
 
 
 def _is_dunder(s):
+    """
+        Whether a given name is a dunder name
+    :param s: Name to check
+    :return: Whether name is dunder
+    """
     return s.startswith("__") and s.endswith("__")
 
 
-def _get_convert(type):
-    if type == dt.datetime:
+def _get_convert(cls):
+    """
+        Get the conversion function to use with a given type annotation
+    :param cls: Type annotation on object
+    :return: Converter function to use
+    """
+    if cls == dt.datetime:
         return _from_iso
-    elif type == dt.date:
+    elif cls == dt.date:
         return _from_date
-    elif type == dt.timezone:
+    elif cls == dt.timezone:
         return _from_tz
     else:
-        return type
+        return cls
 
 
 _Null = object()
 
 
 class NanoMeta(type):
+    """
+        Metaclass for all Nano Objects. Handles conversion from annotations into attribute data for
+        automatic conversion to/from JSON
+    """
 
     def __new__(mcs, name, bases, namespace):
+        """
+            Create a new class with this metaclass. Reads annotations and generates relevant type data
+        :param name: New class name
+        :param bases: New class subclasses
+        :param namespace: New class namespace
+        """
         new_namespace = {
             "_ATTR_DATA": {}
         }
@@ -46,7 +81,7 @@ class NanoMeta(type):
         for item in namespace:
             if item == "TYPE" or _is_dunder(item) or not isinstance(namespace[item], str):
                 new_namespace[item] = namespace[item]
-                continue
+                continueA
             kls = lambda x: x
             if "__annotations__" in namespace and item in namespace["__annotations__"]:
                 kls = namespace["__annotations__"][item]

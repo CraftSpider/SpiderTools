@@ -42,6 +42,9 @@ class TalosHTTPClient:
         self._kwargs = kwargs
 
     async def init(self):
+        """
+            Initializes the HTTP Client, must be called before use
+        """
         self.client = aiohttp.ClientSession(*self._args, **self._kwargs)
 
     async def close(self):
