@@ -81,7 +81,7 @@ class NanoMeta(type):
         for item in namespace:
             if item == "TYPE" or _is_dunder(item) or not isinstance(namespace[item], str):
                 new_namespace[item] = namespace[item]
-                continueA
+                continue
             kls = lambda x: x
             if "__annotations__" in namespace and item in namespace["__annotations__"]:
                 kls = namespace["__annotations__"][item]
