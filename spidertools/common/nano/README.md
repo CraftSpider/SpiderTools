@@ -46,17 +46,22 @@ on all subsequent requests.
 * groups
 * challenges
 * nanomessages
+* notifications
 * locations
 * external-links
 * group-external-links
 * favorite-books
 * favorite-authors
+* daily-aggregates
 
 * user-badges
 * project-sessions
 * project-challenges
 * group-users
 * location-groups
+
+* pages
+* posts
 
 ### Known Commands:
 
@@ -65,6 +70,12 @@ on all subsequent requests.
 * `search`
   * `GET` Searchs for users by name
     * `q` Name to filter by
+* `random_offer`
+  * `GET` Gets a random post
+* `store_items`
+  * `GET` Gets a list of store items
+* `offers`
+  * `GET` Gets a list of offers
 
 * `users/current`
   * `GET` Gets current user
@@ -87,19 +98,39 @@ user their own response formats. Known formats are listed below.
 
 ### Type Request
 
-```json
+```
 {
   "data": Object,
   "included": [
     Object,
     ...
+  ],
+  // If the type is page, these are included top-level
+  "author_cards": {
+    "data": [
+      Object,
+      ...
+    ]
+  },
+  "before_posts": [
+    {
+      "data": Object
+    },
+    ...
+  ],
+  "after_posts": [
+    {
+      "data": Object
+    },
+    ...
   ]
+  ""
 }
 ```
 
 ### Object
 
-```json
+```
 {
   "id": "{id}",
   "type": "{id}",
@@ -131,7 +162,7 @@ user their own response formats. Known formats are listed below.
 
 ### Sign In
 
-```json
+```
 {
   "auth_token": "{token}"
 }
@@ -139,7 +170,7 @@ user their own response formats. Known formats are listed below.
 
 ### Error
 
-```json
+```
 {
   "error": "{errmsg}"
 }
@@ -153,4 +184,28 @@ user their own response formats. Known formats are listed below.
   "raised": "{total-raised}",
   "donorCount": {donor-count}
 }
+```
+
+### Store Items
+
+```
+[
+ {
+  "title": {title},
+  "handle": {handle},
+  "image": {
+   "src": {src-link}
+  }
+ },
+ ...
+]
+```
+
+# Offers
+
+```
+[
+ Object,
+ ...
+]
 ```
