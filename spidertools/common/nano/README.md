@@ -124,7 +124,6 @@ user their own response formats. Known formats are listed below.
     },
     ...
   ]
-  ""
 }
 ```
 
