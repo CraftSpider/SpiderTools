@@ -5,7 +5,7 @@ import logging
 from spidertools.common import element as el
 
 
-log = logging.getLogger("talos.utils.parsers")
+log = logging.getLogger("spidertools.common.parsers")
 
 
 def attrs_to_dict(attrs):

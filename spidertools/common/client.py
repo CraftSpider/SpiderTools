@@ -8,7 +8,7 @@ import datetime as dt
 from spidertools.common import utils
 
 
-log = logging.getLogger("talos.utils.client")
+log = logging.getLogger("spidertools.common.client")
 
 
 class TalosHTTPClient:

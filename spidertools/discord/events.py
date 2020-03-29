@@ -8,7 +8,7 @@ from spidertools.common import data, utils
 from . import errors
 
 
-log = logging.getLogger("talos.dutils.events")
+log = logging.getLogger("spidertools.discord.events")
 
 
 def align_period(period, start_time: dt.datetime=None):

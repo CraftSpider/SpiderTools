@@ -3,24 +3,34 @@ import json
 import logging
 import secrets
 import aiohttp.web as web
+import spidertools.common.clstools as clstools
 
 from .base_handler import BaseHandler
 
 
-log = logging.getLogger("utils.webserver.api")
+log = logging.getLogger("spidertools.webserver.api")
 
 
-def api_handler(name):
+@clstools.decorator
+def api_handler(*, name=None):
     """
         Decorator for API handlers with method names not matching
         their command names.
     :param name: Command name for the function
     :return: Wrapper function to set the name
     """
-    def wrap(func):
-        func.__api_name__ = name
+
+    def predicate(func):
+        func.__api_name__ = name if name else func.__name__
         return func
-    return wrap
+
+    return predicate
+
+
+@clstools.noarg_decorator
+def auth_required(func):
+    func.__api_auth__ = True
+    return func
 
 
 class APIHandler(BaseHandler):
@@ -69,7 +79,10 @@ class APIHandler(BaseHandler):
         :param path: Request path
         :return: Command name
         """
-        return "_".join(path.lstrip("/").split("/")[1:])
+        remove = 0
+        if self.path is not None:
+            remove = self.path.count("/") + 1
+        return "_".join(path.lstrip("/").split("/")[remove:])
 
     async def get(self, request):
         """
@@ -108,10 +121,11 @@ class APIHandler(BaseHandler):
         headers = request.headers
 
         # Verify token
-        user_token = headers.get("token")
-        username = headers.get("username")
-        if not self._check_token(username, user_token):
-            return self.json_error("Invalid Token/Unknown User", status=403)
+        if hasattr(self, "__api_auth__"):
+            user_token = headers.get("token")
+            username = headers.get("username")
+            if not self._check_token(username, user_token):
+                return self.json_error("Invalid Token/Unknown User", status=403)
 
         # And finally we can do what the request is asking
         try:
@@ -130,8 +144,9 @@ class APIHandler(BaseHandler):
         """
         handler = self._handlers.get(f"{method}_{name}", None)
         if handler is None:
-            handler = self._handlers.get(name, None)
-        return handler
+            return self._handlers.get(name, None), None
+        else:
+            return handler, method
 
     async def dispatch(self, name, method, data):
         """
@@ -146,9 +161,13 @@ class APIHandler(BaseHandler):
         if parser is not None:
             data = parser(method, data)
 
-        handler = self._get_handler(method, name)
+        handler, method = self._get_handler(method, name)
         if handler is not None:
-            return await handler(self, method, data)
+            if method is None:
+                result = await handler(self, method, data)
+            else:
+                result = await handler(self, data)
+            return result
         else:
             return self.json_error("Unknown API Command")
 

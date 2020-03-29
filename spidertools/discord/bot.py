@@ -9,7 +9,7 @@ from . import events
 from . import paginators
 
 
-log = logging.getLogger("talos.dutils.bot")
+log = logging.getLogger("spidertools.discord.bot")
 
 
 class ExtendedBot(commands.Bot):

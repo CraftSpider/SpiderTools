@@ -5,7 +5,7 @@ from spidertools import twitch
 
 from .base_handler import BaseHandler
 
-log = logging.getLogger("utils.webserver.auth")
+log = logging.getLogger("spidertools.webserver.auth")
 
 
 class AuthHandler(BaseHandler):

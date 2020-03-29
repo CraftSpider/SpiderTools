@@ -22,7 +22,7 @@ except (ImportError, OSError):
 from spidertools.common import parsers, element as el
 
 
-log = logging.getLogger("talos.utils")
+log = logging.getLogger("spidertools.common.utils")
 
 # Normal characters to fullwidth characters
 fullwidth_transform = {

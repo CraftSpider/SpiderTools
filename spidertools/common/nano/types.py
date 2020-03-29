@@ -257,7 +257,7 @@ class Subdata:
             Convert subdata to its JSON representation
         :return: Dictionary of subdata values
         """
-        return {}  # TODO
+        raise NotImplementedError()
 
 
 class PrivacySettings(Subdata):
@@ -281,6 +281,22 @@ class PrivacySettings(Subdata):
         self.visibility_regions = data["privacy-visibility-regions"]
         self.visibility_buddies = data["privacy-visibility-buddy-lists"]
         self.visibility_activity = data["privacy-visibility-activity-logs"]
+
+    def _to_data(self):
+        """
+            Convert PrivacySettings to its JSON representation
+        :return: Dictionary of subdata values
+        """
+        return {
+            "privacy-view-buddies": self.view_buddies,
+            "privacy-view-projects": self.view_projects,
+            "privacy-view-profile": self.view_profile,
+            "privacy-view-search": self.view_search,
+            "privacy-send-nanomessages": self.send_messages,
+            "privacy-visibility-regions": self.visibility_regions,
+            "privacy-visibility-buddy-lists": self.visibility_buddies,
+            "privacy-visibility-activity-logs": self.visibility_activity
+        }
 
 
 class NotificationSettings(Subdata):
@@ -308,6 +324,25 @@ class NotificationSettings(Subdata):
         self.goal_milestones = data["notification-goal-milestones"]
         self.home_region_events = data["notification-events-in-home-region"]
         self.new_badges = data["notification-new-badges"]
+
+    def _to_data(self):
+        """
+            Convert NotificationSettings to its JSON representation
+        :return: Dictionary of subdata values
+        """
+        return {
+            "notification-buddy-requests": self.buddy_requests,
+            "notification-buddy-activities": self.buddy_activities,
+            "notification-nanomessages-buddies": self.buddy_messages,
+            "notification-nanomessages-mls": self.ml_messages,
+            "notification-nanomessages-hq": self.hq_messages,
+            "notification-sprint-invitation": self.sprint_invitation,
+            "notification-sprint-start": self.sprint_start,
+            "notification-writing-reminders": self.writing_reminders,
+            "notification-goal-milestones": self.goal_milestones,
+            "notification-events-in-home-region": self.home_region_events,
+            "notification-new-badges": self.new_badges
+        }
 
 
 class EmailSettings(Subdata):

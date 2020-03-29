@@ -5,7 +5,7 @@ import aiohttp.web as web
 from .base_handler import BaseHandler
 
 
-log = logging.getLogger("utils.webserver.site")
+log = logging.getLogger("spidertools.webserver.site")
 
 
 class SiteHandler(BaseHandler):

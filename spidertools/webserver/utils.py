@@ -8,7 +8,7 @@ import aiohttp.hdrs as hdrs
 import aiohttp.web as web
 
 
-log = logging.getLogger("utils.webserver")
+log = logging.getLogger("spidertools.webserver")
 log.setLevel(logging.INFO)
 log.addHandler(logging.FileHandler(utils.log_folder / "webserver.log"))
 
@@ -65,7 +65,7 @@ def add_handler(app, handler, path=None):
     :param path: Path for the handler to control, defaults to the root path
     """
     if isinstance(handler, type):
-        handler = handler(app=app)
+        handler = handler(app=app, path=path)
     if "handlers" not in app:
         app["handlers"] = []
 

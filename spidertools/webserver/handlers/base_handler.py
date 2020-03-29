@@ -12,7 +12,7 @@ import os
 from .errors import ServerWarning, ServerError
 
 
-log = logging.getLogger("utils.webserver.handler")
+log = logging.getLogger("spidertools.webserver.handler")
 
 
 BACKUP_ERROR = """
@@ -83,14 +83,15 @@ class BaseHandler:
         Base class for all webserver handlers. Provides some useful methods, and other initialization
     """
 
-    __slots__ = ("app",)
+    __slots__ = ("app", "path")
 
-    def __init__(self, app):
+    def __init__(self, app, path):
         """
             Initialize a new handler object from an application
         :param app: Application tied to this handler
         """
         self.app = app
+        self.path = path
 
     async def get_path(self, path):
         """

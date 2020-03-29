@@ -6,7 +6,7 @@ import logging
 from . import constants as const
 
 
-log = logging.getLogger("talos.utils.twitch")
+log = logging.getLogger("spidertools.twitch.type")
 
 
 class OAuth:
