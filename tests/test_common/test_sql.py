@@ -2,10 +2,11 @@
 import pytest
 
 import spidertools.common as tutils
+import spidertools.common.accessors.base as base
 
 
 def test_empty_cursor():
-    cursor = tutils.sql.EmptyCursor()
+    cursor = base.EmptyCursor()
 
     with pytest.raises(StopIteration):
         cursor.__iter__().__next__()
@@ -25,7 +26,7 @@ def test_empty_cursor():
 
 
 def test_empty_database():
-    database = tutils.GenericDatabase("", -1, "notauser", "", "talos_data", {}, connect=False)
+    database = tutils.GenericDatabase("", -1, "notauser", "", "talos_data", {"sql_flavor": "mysql"}, connect=False)
 
     assert database.is_connected() is False, "Empty database considered connected"
     assert database.raw_exec("SELECT * FROM admins") == list(), "raw_exec didn't return empty fetchall"

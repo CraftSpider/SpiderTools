@@ -55,6 +55,9 @@ class SqlConvertable(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def sql_safe(self) -> Union[str, int]: ...
 
+class Schema(Row):
+
+    __slots__ = ("catalog", "name", "default_character_set", "default_collation", "sql_path", "default_encryption")
 
 class Table(Row):
 
@@ -90,4 +93,10 @@ class Column(Row):
     comment: str
     generation_expr: str
 
+class Trigger(Row):
 
+    __slots__ = ("catalog", "schema", "name", "event_manipulation", "event_object_catalog", "event_object_schema",
+                 "event_object_table", "action_order", "action_condition", "action_statement", "action_orientation",
+                 "action_timing", "action_reference_old_table", "action_reference_new_table",
+                 "action_reference_old_row", "action_reference_new_row", "created", "sql_mode", "definer",
+                 "character_set_client", "collation_connection", "database_collation")

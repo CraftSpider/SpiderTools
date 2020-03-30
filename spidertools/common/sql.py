@@ -1,6 +1,5 @@
 
 import logging
-import re
 
 from spidertools.common import data
 from . import accessors

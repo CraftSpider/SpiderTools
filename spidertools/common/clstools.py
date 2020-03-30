@@ -3,16 +3,35 @@ import types
 
 
 def _mangle(cls, name):
+    """
+        Given a class and a name, apply python name mangling to it
+    :param cls: Class to mangle with
+    :param name: Name to mangle
+    :return: Mangled name
+    """
     return f"_{cls.__name__}__{name}"
 
 
 def unwrap(func):
+    """
+        Fully unwrap a wrapped object
+    :param func: Function to unwrap
+    :return: Unwrapped function
+    """
     while hasattr(func, "__wrapped__"):
         func = func.__wrapped__
     return func
 
 
 def forward_func(new, old):
+    """
+        'Forward' a function / class, by setting the first arg's special values
+        to those of the second arg. This allows wrappers returned by decorators to
+        look right in call stacks and etc, while setting __wrapped__ so they are recognized
+        as decorators
+    :param new: Function / class to forward
+    :param old: Function / class it is wrapping
+    """
     new.__name__ = old.__name__
     new.__qualname__ = old.__qualname__
     new.__doc__ = old.__doc__
@@ -25,14 +44,31 @@ forward_class = forward_func
 
 
 class Singleton:
+    """
+        Class that is only constructed and initialized once, then future constructions
+        return the already constructed class. When used in a class hierarchy, all children of a
+        singleton can call their parent's constructors exactly once
+    """
 
     def __new__(cls, *args, **kwargs):
+        """
+            Construct a new Singleton. Checks for an instance, if one doesn't exist,
+            creates one
+        :param args: Ignored
+        :param kwargs: Ignored
+        :return: New or existing instance
+        """
         if not hasattr(cls, _mangle(cls, "instance")):
             setattr(cls, _mangle(cls, "instance"), super().__new__(cls))
             setattr(cls, _mangle(cls, "initialized"), False)
         return getattr(cls, _mangle(cls, "instance"))
 
     def __init_subclass__(cls, **kwargs):
+        """
+            Prepare a subclass to only have its init run once. Wraps the init to check if it
+            has been run before
+        :param kwargs: Ignored
+        """
         if cls.__init__ != object.__init__:
             old_init = cls.__init__
 
@@ -47,6 +83,13 @@ class Singleton:
 
 
 def decorator(func):
+    """
+        Mark a function as a decorator. Allows usage when decorating with or without (), without
+        is the same as a no-arg call. All decorators must return a predicate that will be actually
+        called with the func. This function itself must not have ()
+    :param func: Function to mark as decorator
+    :return: Forwarded function wrapper
+    """
 
     def wrapper(*args, **kwargs):
         if len(args) == 1 and len(kwargs) == 0 and isinstance(args[0], (types.FunctionType, type)):
@@ -59,6 +102,13 @@ def decorator(func):
 
 
 def noarg_decorator(func):
+    """
+        Mark a function as a no-arg decorator. Allows usage when decorating with or without ().
+        Either way ends up just calling the function with what it is decorating, no predicate
+        required (Unlike decorator) allowing for more readable / less complex code
+    :param func: Function to mark as no-arg decorator
+    :return: Forwarded function wrapper
+    """
 
     def wrapper(_func=None):
         if isinstance(_func, (types.FunctionType, type)):
@@ -76,6 +126,14 @@ _caches = {}
 
 
 def _make_key(args, kwargs):
+    """
+        Generate a unique key from a set of arguments. If the arguments are all hashable,
+        then their hash is used. Otherwise, their ID is used. Hashables are thus compared
+        same by value equality, non-hashables by identity
+    :param args: Positional arguments to key on
+    :param kwargs: Keyword arguments to key on
+    :return: FrozenSet that represents this set of arguments
+    """
     set_vals = []
 
     for index, value in enumerate(args):
@@ -92,6 +150,12 @@ def _make_key(args, kwargs):
 
 @decorator
 def invalidating_cache(*, method=False):
+    """
+        Mark a function as using an 'invalidating cache', a cache that remains the same till invalidated
+        by a different function call
+    :param method: Whether this is a method, if so 'self' param will be ignored
+    :return: Forwarded function wrapper
+    """
 
     def predicate(func):
 
@@ -122,6 +186,17 @@ def invalidating_cache(*, method=False):
 
 @decorator
 def cache_invalidator(*, func=None, method=False, args=None, kwargs=None):
+    """
+        Mark a function as invalidating the cache of associated function(s). Optionally
+        can only invalidate part of the cache, based on args/kwargs positions
+    :param func: Function / tuple of functions to invalidate. If missing, invalidates everything
+    :param method: Whether this function is a method. Only used if args/kwargs to key on are specified
+    :param args: Optional tuple of arguments that are compared, only invalidating cached calls
+                 that use the same args in the same position as the tuple
+    :param kwargs: Optional tuple of argument names that are compared, only invalidating cached calls
+                   that use the same kwargs as the tuple specifies
+    :return: Forwarded function wrapper
+    """
 
     if func is not None:
         if isinstance(func, (list, tuple, set)):
