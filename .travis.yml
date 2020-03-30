@@ -11,7 +11,9 @@ matrix:
       dist: xenial
       sudo: true
 
-services: mysql
+services:
+  - mysql
+  - postgresql
 
 install:
   - pip install "." .

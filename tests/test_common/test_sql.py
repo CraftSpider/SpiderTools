@@ -5,6 +5,27 @@ import spidertools.common as tutils
 import spidertools.common.accessors.base as base
 
 
+SCHEMA = {
+
+}
+
+
+@pytest.fixture()
+def mysql_database():
+    schemadef = SCHEMA.copy()
+    schemadef["sql_flavor"] = "mysql"
+    database = tutils.GenericDatabase("localhost", 3306, "root", "", "test_schema", schemadef)
+    yield database
+
+
+@pytest.fixture()
+def postgres_database():
+    schemadef = SCHEMA.copy()
+    schemadef["sql_flavor"] = "postgres"
+    database = tutils.GenericDatabase("localhost", 5432, "postgres", "", "test_schema", schemadef)
+    yield database
+
+
 def test_empty_cursor():
     cursor = base.EmptyCursor()
 
@@ -33,3 +54,15 @@ def test_empty_database():
     assert database.commit() is False, "Database committed despite not existing?"
     assert database.execute("SELECT * FROM admins WHERE id=%s", [12345678]) is None,\
         "Database execution returned unexpected result"
+
+
+def test_mysql_database(mysql_database):
+    if not mysql_database.is_connected():
+        pytest.skip("MySQL database not found")
+    assert False
+
+
+def test_postgres_database(postgres_database):
+    if not postgres_database.is_connected():
+        pytest.skip("Postgres database not found")
+    assert False
