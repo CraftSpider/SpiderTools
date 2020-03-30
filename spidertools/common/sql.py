@@ -1,81 +1,16 @@
 
 import logging
 import re
-import mysql.connector
-import mysql.connector.abstracts as mysql_abstracts
 
 from spidertools.common import data
-
-log = logging.getLogger("talos.utils.sql")
-
-
-class EmptyCursor(mysql_abstracts.MySQLCursorAbstract):
-    """
-        A cursor for a non-existent database that should pretend to be connected. Returns None or empty list values
-        for all results
-    """
-
-    __slots__ = ()
-
-    DEFAULT_ONE = None
-    DEFAULT_ALL = list()
-
-    def __init__(self):
-        """Init stub"""
-        super().__init__()
-
-    def __iter__(self):
-        """Iterator stub"""
-        return iter(self.fetchone, self.DEFAULT_ONE)
-
-    def callproc(self, procname, args=()):
-        """Callproc stub"""
-        pass
-
-    def close(self):
-        """Close stub"""
-        pass
-
-    def execute(self, query, params=None, multi=False):
-        """Execute stub"""
-        pass
-
-    def executemany(self, operation, seqparams):
-        """Executemany stub"""
-        pass
-
-    def fetchone(self):
-        """Fetchone stub"""
-        return self.DEFAULT_ONE
-
-    def fetchmany(self, size=1):
-        """Fetchmany stub"""
-        return self.DEFAULT_ALL
-
-    def fetchall(self):
-        """Fetchall stub"""
-        return self.DEFAULT_ALL
-
-    @property
-    def description(self):
-        """Description stub"""
-        return tuple()
-
-    @property
-    def rowcount(self):
-        """Rowcount stub"""
-        return 0
-
-    @property
-    def lastrowid(self):
-        """Lastrowid stub"""
-        return None
+from . import accessors
 
 
-talos_create_table = "CREATE TABLE `{}` ({}) ENGINE=InnoDB DEFAULT CHARSET=utf8"
-talos_add_column = "ALTER TABLE {} ADD COLUMN {} {}"
-talos_modify_column = "ALTER TABLE {} MODIFY COLUMN {}"
+log = logging.getLogger("spidertools.common.sql")
+
 talos_create_trigger = "CREATE TRIGGER {} {} on {} {} END;"
+
+_caches = {}
 
 
 def and_from_dict(kwargs):
@@ -95,9 +30,6 @@ def key_from_dict(kwargs):
     :return: frozenset of string keys generated from arguments
     """
     return frozenset(f"{x}|{kwargs[x]}" for x in kwargs)
-
-
-_caches = {}
 
 
 def cached(func):
@@ -159,7 +91,7 @@ class GenericDatabase:
         (Schema matching can be enforced with verify_schema)
     """
 
-    __slots__ = ("_sql_conn", "_cursor", "_username", "_password", "_schema", "_host", "_port", "_schemadef")
+    __slots__ = ("_accessor", "_username", "_password", "_schema", "_host", "_port", "_schemadef")
 
     def __init__(self, address, port, username, password, schema, schemadef, *, connect=True):
         """
@@ -176,9 +108,16 @@ class GenericDatabase:
         self._schema = schema
         self._host = address
         self._port = port
-        self._sql_conn = None
-        self._cursor = EmptyCursor()
         self._schemadef = schemadef
+
+        flavor = schemadef["sql_flavor"].lower()
+        if flavor == "mysql":
+            self._accessor = accessors.MysqlAccessor()
+        elif flavor == "postgresql" or flavor == "postgres":
+            self._accessor = accessors.PostgresAccessor()
+        else:
+            raise ValueError(f"Unrecognized SQL flavor {flavor}")
+
         if connect:
             self.reset_connection()
 
@@ -196,11 +135,11 @@ class GenericDatabase:
             return
 
         # Verify schema is extant
-        if self.has_schema(self._schema):
+        if self._accessor.has_schema(self._schema):
             log.info(f"Found schema {self._schema}")
         else:
             log.warning(f"Schema {self._schema} doesn't exist, creating schema")
-            self.create_schema(self._schema)
+            self._accessor.create_schema(self._schema)
 
         # Verify tables match expected
         for table in tables:
@@ -214,8 +153,11 @@ class GenericDatabase:
                     columndat[item.name][0] += 1
                     columndat[item.name][1] = item.type
                 for item in tables[table]["columns"]:
-                    details = re.search(r"`(.*?)` (\w+)", item)
-                    name, col_type = details.group(1), details.group(2)
+                    name, col_type = item["name"], item["type"]
+                    if col_type == "serial":
+                        col_type = "integer"
+                    elif self._schemadef["sql_flavor"] != "mysql" and col_type.startswith("varchar"):
+                        col_type = "character varying"
                     columndat[name][0] += 2
                     columndat[name][1] = columndat[name][1] == col_type
 
@@ -224,57 +166,44 @@ class GenericDatabase:
                     if exists == 1:
                         log.warning(f"  Found column {name} that shouldn't exist, removing")
                         out["columns_remove"] += 1
-                        self.remove_column(table, name)
+                        self._accessor.drop_column(table, name)
                     elif exists == 2:
                         log.warning(f"  Could not find column {name}, creating column")
                         out["columns_add"] += 1
-                        column_spec = next(filter(lambda x: x.find("`{}`".format(name)) > -1,
-                                                  tables[table]["columns"]))
+                        column_spec = next(filter(lambda x: x["name"] == name, tables[table]["columns"]))
                         column_index = tables[table]["columns"].index(column_spec)
                         if column_index == 0:
-                            column_place = "FIRST"
+                            after = None
                         else:
-                            column_place = "AFTER " +\
-                                           re.search(
-                                               r"`(.*?)`",
-                                               tables[table]["columns"][column_index-1]
-                                           ).group(1)
-                        self.execute(talos_add_column.format(table, column_spec, column_place))
+                            after = tables[table]["columns"][column_index-1]["name"]
+                        self._accessor.add_column(table, column_spec, after=after)
                     elif exists == 3 and type_match is not True:
                         log.warning(f"  Column {name} didn't match expected type, attempting to fix.")
-                        column_spec = next(filter(lambda x: x.find("`{}`".format(name)) > -1,
-                                                  tables[table]["columns"]))
-                        self.execute(talos_modify_column.format(table, column_spec))
+                        column_spec = next(filter(lambda x: x["name"] == name, tables[table]["columns"]))
+                        self._accessor.alter_column(table, column_spec)
                     else:
                         log.info(f"  Found column {name}")
             else:
                 log.info(f"Could not find table {table}, creating table")
                 out["tables"] += 1
-                body = ',\n'.join(tables[table]["columns"] + ["PRIMARY KEY " + tables[table]["primary"]])
-                if "foreign" in tables[table]:
-                    for key in tables[table]["foreign"]:
-                        body += ",\n FOREIGN KEY " + key
-                    if "cascade" in tables[table] and tables[table]["cascade"] is True:
-                        body += " ON DELETE CASCADE"
-                self.execute(
-                    talos_create_table.format(
-                        table, ',\n'.join(tables[table]["columns"] + ["PRIMARY KEY " + tables[table]["primary"]])
-                    )
+                self._accessor.create_table(
+                    table,
+                    tables[table]["columns"],
+                    tables[table].get("primary"),
+                    tables[table].get("foreign")
                 )
 
         # Fill tables with default values
         for table in tables:
             if tables[table].get("defaults") is not None:
+                names = list(map(lambda x: x["name"], tables[table]["columns"]))
                 for values in tables[table]["defaults"]:
-                    vals = str(values).strip("[]")
-                    self.execute(f"REPLACE INTO {table} VALUES ({vals})")
+                    self._accessor.insert(table, names=names, values=values, update=True)
 
         # Drop existing triggers
-        query = "SELECT trigger_name FROM information_schema.TRIGGERS WHERE trigger_schema = SCHEMA();"
-        self.execute(query)
-        old_triggers = map(lambda x: x[0], self._cursor.fetchall())
+        old_triggers = self.get_triggers()
         for trigger in old_triggers:
-            self.execute(f"DROP TRIGGER {trigger}")
+            self._accessor.drop_trigger(trigger.name)
 
         # Add all triggers
         for name in triggers:
@@ -291,8 +220,8 @@ class GenericDatabase:
         :return: Whether a commit successfully occurred
         """
         log.debug("Committing data")
-        if self._sql_conn:
-            self._sql_conn.commit()
+        if self._accessor.is_connected():
+            self._accessor._connection.commit()
             return True
         return False
 
@@ -301,7 +230,7 @@ class GenericDatabase:
             Checks whether we are currently connected to a database
         :return: Whether the connection exists and the cursor isn't an EmptyCursor.
         """
-        return self._sql_conn is not None and not isinstance(self._cursor, EmptyCursor)
+        return self._accessor.is_connected()
 
     def reset_connection(self):
         """
@@ -309,42 +238,23 @@ class GenericDatabase:
             If connection fails, it is set to None and cursor is the empty cursor
         """
 
-        if self._sql_conn:
-            try:
-                self.commit()
-                self._sql_conn.close()
-            except Exception:
-                pass
+        if self._accessor.is_connected():
+            self._accessor.close()
 
-        cnx = None
         try:
-            cnx = mysql.connector.connect(user=self._username, password=self._password, host=self._host,
-                                          port=self._port, autocommit=True)
-            if cnx is None:
+            cnx = self._accessor.create_connection(
+                user=self._username,
+                password=self._password,
+                host=self._host,
+                port=self._port,
+                schema=self._schema,
+                autocommit=True
+            )
+            if cnx is False:
                 log.warning("Talos database missing, no data will be saved this session.")
-            else:
-                try:
-                    cnx.cursor().execute(f"USE {self._schema}")
-                    log.info("Talos database connection established")
-                except mysql.connector.DatabaseError:
-                    log.info("Talos Schema non-extant, creating")
-                    try:
-                        cnx.cursor().execute(f"CREATE SCHEMA {self._schema}")
-                        cnx.cursor().execute(f"USE {self._schema}")
-                        log.info("Talos database connection established")
-                    except mysql.connector.DatabaseError:
-                        log.warning("Talos Schema could not be created, dropping connection")
-                        cnx = None
         except Exception as e:
             log.warning(e)
             log.warning("Database connection dropped, no data will be saved this session.")
-
-        if cnx is not None:
-            self._sql_conn = cnx
-            self._cursor = cnx.cursor()
-        else:
-            self._sql_conn = None
-            self._cursor = EmptyCursor()
 
     def raw_exec(self, statement, *args):
         """
@@ -352,8 +262,8 @@ class GenericDatabase:
         :param statement: SQL statement to execute.
         :return: The result of a cursor fetchall after the statement executes.
         """
-        self._cursor.execute(statement, args)
-        return self._cursor.fetchall()
+        self._accessor.execute(statement, args)
+        return self._accessor._cursor.fetchall()
 
     def execute(self, statement, args=None):
         """
@@ -362,100 +272,20 @@ class GenericDatabase:
         :param statement: Statement to execute
         :param args: Arguments to supply to the statement
         """
-        try:
-            return self._cursor.execute(statement, args)
-        except mysql.connector.errors.Error as e:
-            if e.errno == 2006:
-                self.reset_connection()
-                return self.execute(statement, args)
-            else:
-                raise
+        result = self._accessor.execute(statement, args)
+        if result is accessors.ConnectionLost:
+            self.reset_connection()
+            result = self._accessor.execute(statement, args)
+        return result
 
     # Meta methods
 
-    def create_schema(self, schema, charset="utf8"):
+    def get_schemata(self):
         """
-            Add a new schema to the database, with the given name and default charset
-        :param schema: Name of the schema to create
-        :param charset: Default character set of the schema
+            Get a list of Schema objects from the information_schema
+        :return: list of Schema objects
         """
-        self.execute(
-            f"CREATE SCHEMA {schema} DEFAULT CHARACTER SET {charset}"
-        )
-
-    def create_table(self, table, columns, primary="", foreign="", engine="InnoDB", charset="utf8"):
-        """
-            Add a new table to the primary schema, with a given name and set of columns
-        :param table: Name of the table to create
-        :param columns: List of column definitions
-        :param primary: Primary keys of the table
-        :param foreign: Foreign keys of the table
-        :param engine: Table engine to use
-        :param charset: Table charset to use
-        """
-        internal = ",\n".join(columns)
-        if primary:
-            internal += f",\nPRIMARY KEY ({primary})"
-        if foreign:
-            internal += f",\nFOREIGN KEY {foreign}"
-        self.execute(
-            f"CREATE TABLE {table} ({internal}) ENGINE={engine} DEFAULT CHARSET={charset}"
-        )
-
-    def drop_table(self, table):
-        """
-            Drop a table from the primary schema
-        :param table: Name of the table to drop
-        """
-        self.execute(
-            f"DROP TABLE {self._schema}.{table}"
-        )
-
-    def add_column(self, table, column, type, num="", constraint="", after=None):
-        """
-            Add a column to a given table in the primary schema
-        :param table: Name of the table to add column to
-        :param column: Name of the column to add
-        :param type: Type of the column
-        :param num: Number for the column type
-        :param constraint: Column constraints
-        :param after: Where to place the column in the table
-        """
-        if num:
-            num = f"({num})"
-
-        if after is None:
-            after = "FIRST"
-        else:
-            after = f"AFTER {after}"
-
-        self.execute(
-            f"ALTER TABLE {table} ADD COLUMN {column} {type}{num} {constraint} {after}"
-        )
-
-    def modify_column(self, table, column, type, num=""):
-        """
-            Alter a column from the given table
-        :param table: Name of the table
-        :param column: Name of the column
-        :param type: Type to set the column type to
-        :param num: Number for the column type
-        """
-        if num:
-            num = f"({num})"
-        self.execute(
-            f"ALTER TABLE {table} MODIFY COLUMN {column} {type}{num}"
-        )
-
-    def remove_column(self, table, column):
-        """
-            Remove a column from the given table
-        :param table: Table to remove column from
-        :param column: Column to remove
-        """
-        self.execute(
-            f"ALTER TABLE {self._schema}.{table} DROP COLUMN {column}"
-        )
+        return [data.Schema(x) for x in self._accessor.get_schemata()]
 
     def has_schema(self, schema):
         """
@@ -463,20 +293,14 @@ class GenericDatabase:
         :param schema: Schema to check existence of
         :return: Whether schema exists
         """
-        self.execute(
-            "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = %s LIMIT 1",
-            [schema]
-        )
-        return self._cursor.fetchone()[0] > 0
+        return self._accessor.has_schema(schema)
     
     def get_tables(self):
         """
             Get a list of Table objects from the information_schema for the current database schema
         :return: list of Table objects
         """
-        query = "SELECT * FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s"
-        self.execute(query, [self._schema])
-        return [data.Table(x) for x in self._cursor]
+        return [data.Table(x) for x in self._accessor.get_tables()]
 
     def has_table(self, table):
         """
@@ -484,11 +308,7 @@ class GenericDatabase:
         :param table: Name to check
         :return: Whether table exists in schema
         """
-        self.execute(
-            "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s LIMIT 1",
-            [self._schema, table]
-        )
-        return self._cursor.fetchone()[0] > 0
+        return self._accessor.has_table(table)
 
     def get_columns(self, table):
         """
@@ -496,9 +316,7 @@ class GenericDatabase:
         :param table: Name of the table to retrieve columnns from
         :return: List of column names and data types, or None if table doesn't exist
         """
-        query = "SELECT * FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s"
-        self.execute(query, [self._schema, table])
-        return [data.Column(x) for x in self._cursor]
+        return [data.Column(x) for x in self._accessor.get_columns(table)]
 
     def has_column(self, table, column):
         """
@@ -507,12 +325,14 @@ class GenericDatabase:
         :param column: Column name to check
         :return: Whether column exists in table
         """
-        self.execute(
-            "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
-            "AND COLUMN_NAME = %s",
-            [self._schema, table, column]
-        )
-        return self._cursor.fetchone()[0] > 0
+        return self._accessor.has_column(table, column)
+
+    def get_triggers(self):
+        """
+            Gets the trigger data for the current schema
+        :return: List of Trigger objects
+        """
+        return [data.Trigger(x) for x in self._accessor.get_triggers()]
 
     # Generic methods
 
@@ -528,17 +348,12 @@ class GenericDatabase:
         :return: An instance of type, or default
         """
         conditions = and_from_dict(kwargs)
-        query = f"SELECT * FROM {self._schema}.{type.table_name()}"
-        if conditions:
-            query += " WHERE " + conditions
-        if order:
-            query += f" ORDER BY {order}"
-        query += " LIMIT 1"
-        self.execute(query, kwargs)
-        result = self._cursor.fetchone()
-        if result is None:
+        result = self._accessor.select(
+            type.table_name(), where=conditions, params=kwargs, order=order, limit=1
+        )
+        if len(result) == 0:
             return default
-        return type(result)
+        return type(result[0])
 
     @cached
     def get_items(self, type, *, limit=None, order=None, **kwargs):
@@ -552,17 +367,9 @@ class GenericDatabase:
         :return: A list of type, may be empty if nothing found
         """
         conditions = and_from_dict(kwargs)
-        query = f"SELECT * FROM {self._schema}.{type.table_name()}"
-        if conditions:
-            query += " WHERE " + conditions
-        if order is not None:
-            query += f" ORDER BY {order}"
-        if limit is not None:
-            if isinstance(limit, tuple):
-                limit = f"{limit[0]},{limit[1]}"
-            query += f" LIMIT {limit}"
-        self.execute(query, kwargs)
-        return [type(x) for x in self._cursor]
+        if isinstance(limit, tuple):
+            limit = f"{limit[0]},{limit[1]}"
+        return [type(x) for x in self._accessor.select(type.table_name(), where=conditions, params=kwargs, order=order, limit=limit)]
 
     @cached
     def get_count(self, type, **kwargs):
@@ -573,11 +380,7 @@ class GenericDatabase:
         :return: Number of type in the database
         """
         conditions = and_from_dict(kwargs)
-        query = f"SELECT COUNT(*) FROM {self._schema}.{type.table_name()}"
-        if conditions:
-            query += " WHERE " + conditions
-        self.execute(query, kwargs)
-        return self._cursor.fetchone()[0]
+        return self._accessor.count(type.table_name(), where=conditions, params=kwargs)[0]
 
     @invalidate
     def save_item(self, item):
@@ -590,17 +393,13 @@ class GenericDatabase:
             if not isinstance(table_name, str):
                 raise ValueError(f"Row table_name must be an instance of string, not {type(table_name).__name__}")
             row = item.to_row()
-            columns = list(map(
-                lambda x: re.match(r"`(.*?)`", x).group(1),
-                self._schemadef["tables"][table_name]["columns"]
-            ))
-            replace_str = ", ".join("%s" for _ in range(len(columns)))
-            update_str = ", ".join(f"{i} = VALUES({i})" for i in columns)
-            query = f"INSERT INTO {self._schema}.{table_name} VALUES ({replace_str}) "\
-                    "ON DUPLICATE KEY UPDATE "\
-                    f"{update_str}"
-            log.debug(query)
-            self.execute(query, row)
+            columns = []
+            for index, column in enumerate(self._schemadef["tables"][table_name]["columns"]):  # TODO: encapsulate this in accessor
+                if column["type"] == "serial":
+                    del row[index]
+                else:
+                    columns.append(column["name"])
+            self._accessor.insert(table_name, values=row, names=columns, update=True)
         except AttributeError:
             for row in item:
                 self.save_item(row)
@@ -622,7 +421,7 @@ class GenericDatabase:
             table_name = item.table_name()
             row = item.to_row()
             columns = list(map(
-                lambda x: re.match(r"`(.*?)`", x).group(1),
+                lambda x: x["name"],
                 self._schemadef["tables"][table_name]["columns"]
             ))
             if not general:
@@ -634,9 +433,7 @@ class GenericDatabase:
                     f"{columns[i]} = %s" for i in range(len(columns)) if getattr(item, item.__slots__[i]) is not None
                 )
                 row = list(filter(None, row))
-            query = f"DELETE FROM {self._schema}.{table_name} WHERE {delete_str}"
-            log.debug(query)
-            self.execute(query, row)
+            self._accessor.delete(table_name, where=delete_str, params=row)
         except AttributeError:
             for row in item:
                 self.remove_item(row, general)
@@ -652,13 +449,6 @@ class GenericDatabase:
         :param kwargs: Parameters to filter by. Are all ANDed together
         """
         conditions = and_from_dict(kwargs)
-        query = f"DELETE FROM {self._schema}.{type.table_name()}"
-        if conditions:
-            query += " WHERE " + conditions
-        if order is not None:
-            query += f" ORDER BY {order}"
-        if limit is not None:
-            if isinstance(limit, tuple):
-                limit = f"{limit[0]},{limit[1]}"
-            query += f" LIMIT {limit}"
-        self.execute(query, kwargs)
+        if isinstance(limit, tuple):
+            limit = f"{limit[0]},{limit[1]}"
+        self._accessor.delete(type.table_name(), where=conditions, order=order, limit=limit)
