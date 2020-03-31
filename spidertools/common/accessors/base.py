@@ -274,6 +274,18 @@ class DatabaseAccessor(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    def create_trigger(self, name, cause, table, for_each, text):
+        """
+            Create a new trigger on the database
+        :param name: Name of the trigger
+        :param cause: Cause of the trigger
+        :param table: Table the trigger is on
+        :param for_each: Row or statement
+        :param text: Functional code of the trigger
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def get_triggers(self):
         """
             Get a list of triggers on the current database schema

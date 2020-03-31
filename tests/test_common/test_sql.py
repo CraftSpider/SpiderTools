@@ -14,7 +14,7 @@ SCHEMA = {
 def mysql_database():
     schemadef = SCHEMA.copy()
     schemadef["sql_flavor"] = "mysql"
-    database = tutils.GenericDatabase("localhost", 3306, "root", "", "test_schema", schemadef)
+    database = tutils.GenericDatabase("127.0.0.1", 3306, "root", "", "test_schema", schemadef)
     yield database
 
 
@@ -22,7 +22,7 @@ def mysql_database():
 def postgres_database():
     schemadef = SCHEMA.copy()
     schemadef["sql_flavor"] = "postgres"
-    database = tutils.GenericDatabase("localhost", 5432, "postgres", "", "test_schema", schemadef)
+    database = tutils.GenericDatabase("127.0.0.1", 5432, "postgres", "", "test_schema", schemadef)
     yield database
 
 

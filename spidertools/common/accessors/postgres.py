@@ -344,6 +344,25 @@ class PostgresAccessor(base.DatabaseAccessor):
             query += f" LIMIT {limit}"
         self.execute(query, params)
 
+    def create_trigger(self, name, cause, table, for_each, text):
+        """
+            Create a new trigger on the database
+        :param name: Name of the trigger
+        :param cause: Cause of the trigger
+        :param table: Table the trigger is on
+        :param for_each: Row or statement
+        :param text: Functional code of the trigger
+        """
+        schema = self.current_schema()
+        # Postgres doesn't support the full trigger spec, so we need to fake it
+        query1 = f"CREATE OR REPLACE FUNCTION {schema}.st_trigger_{name}() RETURNS trigger AS $BODY$ BEGIN " \
+                 f"{text} " \
+                 f"END; $BODY$ LANGUAGE plpgsql"
+        print(query1)
+        self.execute(query1)
+        query = f"CREATE TRIGGER {schema}.{name} {cause} ON {schema}.{table} FOR EACH {for_each} BEGIN EXECUTE FUNCTION st_trigger_{name} END;"
+        self.execute(query)
+
     def get_triggers(self):
         """
             Get a list of triggers on the current database schema
@@ -357,4 +376,5 @@ class PostgresAccessor(base.DatabaseAccessor):
             Drop a trigger from the current schema by name
         :param trigger: Name of trigger to drop
         """
+        self.execute(f"DROP FUNCTION st_trigger_{trigger}")
         self.execute(f"DROP TRIGGER {trigger}")
