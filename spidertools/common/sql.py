@@ -208,7 +208,7 @@ class GenericDatabase:
             cause = triggers[name]["cause"]
             table = triggers[name]["table"]
             text = triggers[name]["text"]
-            self.execute(talos_create_trigger.format(name, cause, table, text))
+            self.execute(talos_create_trigger.format(name, cause, table, text))  # TODO: Move to accessor
 
         return out
 

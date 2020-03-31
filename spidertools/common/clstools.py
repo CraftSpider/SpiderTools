@@ -126,6 +126,12 @@ _caches = {}
 
 
 def _make_unique(key, val):
+    """
+        Make a tuple of key, value that is guaranteed hashable and should be unique per value
+    :param key: Key of tuple
+    :param val: Value of tuple
+    :return: Unique key tuple
+    """
     if type(val).__hash__ is None:
         val = str(val)
     return key, val
@@ -189,6 +195,14 @@ def invalidating_cache(*, method=False):
 
 
 def _check_cache(to_check, args, cache, generic):
+    """
+        Check for items to remove in a cache
+    :param to_check: Args to check, ints or strings
+    :param args: List or dict of args or kwargs
+    :param cache: Cache to check in
+    :param generic: Whether to check types instead of strict equality
+    :return: Set of cache objects to remove
+    """
     to_remove = set()
     for i in to_check:
         if generic:
@@ -224,6 +238,7 @@ def cache_invalidator(*, func=None, method=False, args=None, kwargs=None, generi
                  that use the same args in the same position as the tuple
     :param kwargs: Optional tuple of argument names that are compared, only invalidating cached calls
                    that use the same kwargs as the tuple specifies
+    :param generic: Whether to invalidate based on argument types instead of exact equality
     :return: Forwarded function wrapper
     """
 
