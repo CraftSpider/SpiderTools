@@ -177,14 +177,12 @@ def invalidating_cache(*, method=False):
             _key = _make_key(args, kwargs)
             _cache = _caches[unwrap(func)]
             if _key in _cache:
-                print("Cache hit")
                 return _cache[_key]
 
             if method:
                 out = func(self, *args, **kwargs)
             else:
                 out = func(*args, **kwargs)
-            print(f"Adding {_key}")
             _cache[_key] = out
             return out
 
@@ -288,7 +286,6 @@ def cache_invalidator(*, func=None, method=False, args=None, kwargs=None, generi
                     if kwargs is not None:
                         to_remove |= _check_cache(kwargs, _kwargs, _caches[item], generic)
                     for i in to_remove:
-                        print(f"Removing {i}")
                         del _caches[item][i]
 
                     if method:
