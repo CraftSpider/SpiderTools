@@ -125,6 +125,12 @@ def noarg_decorator(func):
 _caches = {}
 
 
+def _make_unique(key, val):
+    if type(val).__hash__ is None:
+        val = str(val)
+    return key, val
+
+
 def _make_key(args, kwargs):
     """
         Generate a unique key from a set of arguments. If the arguments are all hashable,
@@ -137,13 +143,9 @@ def _make_key(args, kwargs):
     set_vals = []
 
     for index, value in enumerate(args):
-        if value.__hash__ is None:
-            value = id(value)
-        set_vals.append((index, value))
+        set_vals.append(_make_unique(index, value))
     for key, value in kwargs.items():
-        if value.__hash__ is None:
-            value = id(value)
-        set_vals.append((key, value))
+        set_vals.append(_make_unique(key, value))
 
     return frozenset(set_vals)
 
@@ -169,12 +171,14 @@ def invalidating_cache(*, method=False):
             _key = _make_key(args, kwargs)
             _cache = _caches[unwrap(func)]
             if _key in _cache:
+                print("Cache hit")
                 return _cache[_key]
 
             if method:
                 out = func(self, *args, **kwargs)
             else:
                 out = func(*args, **kwargs)
+            print(f"Adding {_key}")
             _cache[_key] = out
             return out
 
@@ -184,8 +188,33 @@ def invalidating_cache(*, method=False):
     return predicate
 
 
+def _check_cache(to_check, args, cache, generic):
+    to_remove = set()
+    for i in to_check:
+        if generic:
+            pair = (i, type(args[i]))
+        else:
+            pair = _make_unique(i, args[i])
+
+        if isinstance(args, (list, tuple)) and i >= len(args):
+            break
+        elif isinstance(args, dict) and i not in args:
+            break
+
+        for j in cache:
+            if generic:
+                for k in j:
+                    if k[0] == pair[0] and k[1] == pair[1]:
+                        to_remove.add(j)
+            else:
+                if pair in j:
+                    to_remove.add(j)
+
+    return to_remove
+
+
 @decorator
-def cache_invalidator(*, func=None, method=False, args=None, kwargs=None):
+def cache_invalidator(*, func=None, method=False, args=None, kwargs=None, generic=True):
     """
         Mark a function as invalidating the cache of associated function(s). Optionally
         can only invalidate part of the cache, based on args/kwargs positions
@@ -207,14 +236,18 @@ def cache_invalidator(*, func=None, method=False, args=None, kwargs=None):
     if args is not None:
         if isinstance(args, (list, tuple, set)):
             args = set(args)
+        elif isinstance(args, int):
+            args = {args}
         else:
-            raise TypeError("Args must be list of integer positions")
+            raise TypeError("Args must be list of integer positions or single integer position")
 
     if kwargs is not None:
         if isinstance(kwargs, (list, tuple, set)):
             kwargs = set(kwargs)
+        elif isinstance(kwargs, str):
+            kwargs = {args}
         else:
-            raise TypeError("Kwargs must be list of string argnames")
+            raise TypeError("Kwargs must be list of string argnames, or single string argname")
 
     def predicate(_func):
 
@@ -230,8 +263,21 @@ def cache_invalidator(*, func=None, method=False, args=None, kwargs=None):
                 if args is None and kwargs is None:
                     _caches[item].clear()
                 else:
-                    # TODO: Remove from cache based on this functions args
-                    _caches[item].clear()
+                    self = None
+                    if method:
+                        self, _args = _args[0], _args[1:]
+
+                    to_remove = set()
+                    if args is not None:
+                        to_remove |= _check_cache(args, _args, _caches[item], generic)
+                    if kwargs is not None:
+                        to_remove |= _check_cache(kwargs, _kwargs, _caches[item], generic)
+                    for i in to_remove:
+                        print(f"Removing {i}")
+                        del _caches[item][i]
+
+                    if method:
+                        _args = (self,) + _args
 
             _func(*_args, **_kwargs)
 

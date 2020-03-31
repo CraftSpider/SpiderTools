@@ -1,8 +1,7 @@
 
 import logging
 
-from spidertools.common import data
-from . import accessors
+from . import accessors, data, clstools
 
 
 log = logging.getLogger("spidertools.common.sql")
@@ -335,7 +334,7 @@ class GenericDatabase:
 
     # Generic methods
 
-    @cached
+    @clstools.invalidating_cache(method=True)
     def get_item(self, type, *, order=None, default=None, **kwargs):
         """
             Get the first TalosDatabase compatible object from the database, based on a type.
@@ -354,7 +353,7 @@ class GenericDatabase:
             return default
         return type(result[0])
 
-    @cached
+    @clstools.invalidating_cache(method=True)
     def get_items(self, type, *, limit=None, order=None, **kwargs):
         """
             Get a list of TalosDatabase compatible objects from the database, based on a type.
@@ -370,7 +369,7 @@ class GenericDatabase:
             limit = f"{limit[0]},{limit[1]}"
         return [type(x) for x in self._accessor.select(type.table_name(), where=conditions, params=kwargs, order=order, limit=limit)]
 
-    @cached
+    @clstools.invalidating_cache(method=True)
     def get_count(self, type, **kwargs):
         """
             Get the number of given TalosDatabase objects that are in the database, matching the kwargs filter
@@ -381,7 +380,7 @@ class GenericDatabase:
         conditions = and_from_dict(kwargs)
         return self._accessor.count(type.table_name(), where=conditions, params=kwargs)[0]
 
-    @invalidate
+    @clstools.cache_invalidator(func=(get_item, get_items, get_count), method=True, args=0, generic=True)
     def save_item(self, item):
         """
             Save any TalosDatabase compatible object to the database, inserting or updating that row.
@@ -409,7 +408,7 @@ class GenericDatabase:
             except AttributeError:  # So iterables not having this property are just ignored
                 pass
 
-    @invalidate
+    @clstools.cache_invalidator(func=(get_item, get_items, get_count), method=True, args=0, generic=True)
     def remove_item(self, item, general=False):
         """
             Remove any TalosDatabase compatible object from the database.
@@ -424,20 +423,17 @@ class GenericDatabase:
                 self._schemadef["tables"][table_name]["columns"]
             ))
             if not general:
-                delete_str = " AND ".join(
-                    (f"{i} = %s" if v is not None else f"{i} is %s") for i, v in zip(columns, row)
-                )
+                params = {i: v for i, v in zip(columns, row)}
+                delete_str = and_from_dict(params)
             else:
-                delete_str = " AND ".join(
-                    f"{columns[i]} = %s" for i in range(len(columns)) if getattr(item, item.__slots__[i]) is not None
-                )
-                row = list(filter(None, row))
-            self._accessor.delete(table_name, where=delete_str, params=row)
+                params = {i: v for i, v in zip(columns, row) if v is not None}
+                delete_str = and_from_dict(params)
+            self._accessor.delete(table_name, where=delete_str, params=params)
         except AttributeError:
             for row in item:
                 self.remove_item(row, general)
 
-    @invalidate
+    @clstools.cache_invalidator(func=(get_item, get_items, get_count), method=True, args=0)
     def remove_items(self, type, *, limit=None, order=None, **kwargs):
         """
             Remove any TalosDatabase objects from the database of a specific type, that match the given parameters
