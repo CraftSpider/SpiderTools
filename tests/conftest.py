@@ -57,11 +57,10 @@ class TestBot(bot.ExtendedBot):
 @pytest.fixture(scope="session", autouse=True)
 def setup_logging():
     import logging
-    import sys
     log = logging.getLogger("spidertools")
     log.setLevel(logging.DEBUG)
     format = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
-    handle = logging.StreamHandler(stream=sys.stdout)
+    handle = logging.StreamHandler()
     handle.setFormatter(format)
     log.addHandler(handle)
 
