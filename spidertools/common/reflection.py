@@ -10,6 +10,10 @@ import importlib.machinery
 import pkgutil
 import pathlib
 import typing
+import logging
+
+
+log = logging.getLogger("spidertools.common.reflection")
 
 
 def unwrap(obj):
@@ -194,7 +198,7 @@ def _get_declared_mod(mod, predicate=None):
             elif name in MOD_VARS:
                 yield name, obj
             elif not hasattr(obj, "__module__"):
-                print(f"Not sure whether part of module or not: {name} - {obj}")
+                log.debug(f"Not sure whether part of module or not: {name} - {obj}")
                 unsure.append((name, obj))
 
     for name, obj in unsure:
