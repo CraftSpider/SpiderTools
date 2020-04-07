@@ -15,4 +15,4 @@ services:
 install:
   - pip install "." .
 
-script: python3 -m pytest tests
+script: python3 -m pytest tests -rs
