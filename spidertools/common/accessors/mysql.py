@@ -41,16 +41,16 @@ class MysqlAccessor(base.DatabaseAccessor):
         cnx = mysql.connector.connect(user=user, password=password, host=host, port=port, autocommit=autocommit)
         if cnx is not None:
             try:
-                self._connection.cursor().execute(f"USE {schema}")
-                log.info("Talos database connection established")
+                cnx.cursor().execute(f"USE {schema}")
+                log.info("Database connection established")
             except mysql.connector.DatabaseError:
-                log.info("Talos Schema non-extant, creating")
+                log.info("Schema non-extant, creating")
                 try:
-                    self._connection.cursor().execute(f"CREATE SCHEMA {schema}")
-                    self._connection.cursor().execute(f"USE {schema}")
-                    log.info("Talos database connection established")
+                    cnx.cursor().execute(f"CREATE SCHEMA {schema}")
+                    cnx.cursor().execute(f"USE {schema}")
+                    log.info("Database connection established")
                 except mysql.connector.DatabaseError:
-                    log.warning("Talos Schema could not be created, dropping connection")
+                    log.warning("Schema could not be created, dropping connection")
                     cnx = None
 
         if cnx is None:
