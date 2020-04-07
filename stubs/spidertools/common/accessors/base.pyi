@@ -110,6 +110,9 @@ class DatabaseAccessor(abc.ABC):
     def delete(self, table: str, *, where: str, params: Optional[Union[List[_Sql], Dict[str, _Sql]]] = ..., order: Optional[str] = ..., limit: Optional[str] = ...) -> None: ...
 
     @abc.abstractmethod
+    def create_trigger(self, name: str, cause: str, table: str, for_each: str, text: str) -> None: ...
+
+    @abc.abstractmethod
     def get_triggers(self) -> List[Tuple[_Sql, ...]]: ...
 
     @abc.abstractmethod

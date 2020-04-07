@@ -6,8 +6,6 @@ from . import accessors, data, clstools
 
 log = logging.getLogger("spidertools.common.sql")
 
-talos_create_trigger = "CREATE TRIGGER {} {} on {} {} END;"
-
 _caches = {}
 
 
@@ -85,15 +83,15 @@ def invalidate(func):
 
 class GenericDatabase:
     """
-        Class for handling a Talos connection to a MySQL database that fits the schema expected by Talos.
-        (Schema matching can be enforced with verify_schema)
+        Class for handling a connection to a database that fits the a schema, as defined by a custom JSON format.
+        (Database schema can be updated to match file with verify_schema)
     """
 
     __slots__ = ("_accessor", "_username", "_password", "_schema", "_host", "_port", "_schemadef")
 
     def __init__(self, address, port, username, password, schema, schemadef, *, connect=True):
         """
-            Initializes a TalosDatabase object. If passed None, then it replaces the cursor with a dummy class.
+            Initializes a GenericDatabase object. If passed None, then it replaces the cursor with a dummy class.
         :param address: Address of the SQL database
         :param port: Port of the SQL database
         :param username: SQL username
@@ -250,7 +248,7 @@ class GenericDatabase:
                 autocommit=True
             )
             if cnx is False:
-                log.warning("Talos database missing, no data will be saved this session.")
+                log.warning("Database missing, no data will be saved this session.")
         except Exception as e:
             log.warning(e)
             log.warning("Database connection dropped, no data will be saved this session.")
@@ -338,9 +336,9 @@ class GenericDatabase:
     @clstools.invalidating_cache(method=True)
     def get_item(self, type, *, order=None, default=None, **kwargs):
         """
-            Get the first TalosDatabase compatible object from the database, based on a type.
+            Get the first GenericDatabase compatible object from the database, based on a type.
             Result can be ordered and filtered.
-        :param type: TalosDatabase compatible type. Subclasses Row or duck types it
+        :param type: GenericDatabase compatible type. Subclasses Row or duck types it
         :param order: Parameter to pass into the ORDER BY clause
         :param default: What to return if nothing is found. Defaults to None
         :param kwargs: Parameters to filter by. Are all ANDed together
@@ -357,9 +355,9 @@ class GenericDatabase:
     @clstools.invalidating_cache(method=True)
     def get_items(self, type, *, limit=None, order=None, **kwargs):
         """
-            Get a list of TalosDatabase compatible objects from the database, based on a type.
+            Get a list of GenericDatabase compatible objects from the database, based on a type.
             Result can be ordered, limited, and filtered.
-        :param type: TalosDatabase compatible type. Subclasses Row or duck types it
+        :param type: GenericDatabase compatible type. Subclasses Row or duck types it
         :param limit: Maximum number of items to get. If this would be one, consider get_item
         :param order: Parameter to pass to the ORDER BY clause
         :param kwargs: Parameters to filter by. Are all ANDed together
@@ -373,8 +371,8 @@ class GenericDatabase:
     @clstools.invalidating_cache(method=True)
     def get_count(self, type, **kwargs):
         """
-            Get the number of given TalosDatabase objects that are in the database, matching the kwargs filter
-        :param type: TalosDatabase compatible type. Subclasses Row or duck types it
+            Get the number of given GenericDatabase objects that are in the database, matching the kwargs filter
+        :param type: GenericDatabase compatible type. Subclasses Row or duck types it
         :param kwargs: Parameters to filter by. Are all ANDed together
         :return: Number of type in the database
         """
@@ -384,7 +382,7 @@ class GenericDatabase:
     @clstools.cache_invalidator(func=(get_item, get_items, get_count), method=True, args=0, generic=True)
     def save_item(self, item):
         """
-            Save any TalosDatabase compatible object to the database, inserting or updating that row.
+            Save any GenericDatabase compatible object to the database, inserting or updating that row.
         :param item: Item to save. May be a Row, a MultiRow, or any duck type of those two.
         """
         try:
@@ -412,7 +410,7 @@ class GenericDatabase:
     @clstools.cache_invalidator(func=(get_item, get_items, get_count), method=True, args=0, generic=True)
     def remove_item(self, item, general=False):
         """
-            Remove any TalosDatabase compatible object from the database.
+            Remove any GenericDatabase compatible object from the database.
         :param item: Item to remove. May be a Row, a MultiRow, or any duck type of those two.
         :param general: Whether to delete all similar items. If true, nulls aren't included in the delete search
         """
@@ -437,9 +435,9 @@ class GenericDatabase:
     @clstools.cache_invalidator(func=(get_item, get_items, get_count), method=True, args=0)
     def remove_items(self, type, *, limit=None, order=None, **kwargs):
         """
-            Remove any TalosDatabase objects from the database of a specific type, that match the given parameters
+            Remove any GenericDatabase objects from the database of a specific type, that match the given parameters
             Objects to delete can be limited and ordered
-        :param type: TalosDatabase compatible type. Subclasses Row or duck types it
+        :param type: GenericDatabase compatible type. Subclasses Row or duck types it
         :param limit: Maximum number of items to delete. If this would be one, consider remove_item
         :param order: Parameter to pass into the ORDER BY clause
         :param kwargs: Parameters to filter by. Are all ANDed together

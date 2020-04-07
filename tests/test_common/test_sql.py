@@ -15,6 +15,10 @@ def mysql_database():
     schemadef = SCHEMA.copy()
     schemadef["sql_flavor"] = "mysql"
     database = tutils.GenericDatabase("127.0.0.1", 3306, "root", "", "test_schema", schemadef)
+
+    if not database.is_connected():
+        pytest.skip("Failed to connect to MySql database")
+
     yield database
 
 
@@ -23,6 +27,10 @@ def postgres_database():
     schemadef = SCHEMA.copy()
     schemadef["sql_flavor"] = "postgres"
     database = tutils.GenericDatabase("127.0.0.1", 5432, "postgres", "", "test_schema", schemadef)
+
+    if not database.is_connected():
+        pytest.skip("Failed to connect to Postgres database")
+
     yield database
 
 
@@ -57,12 +65,8 @@ def test_empty_database():
 
 
 def test_mysql_database(mysql_database):
-    if not mysql_database.is_connected():
-        pytest.skip("MySQL database not found")
     assert False
 
 
 def test_postgres_database(postgres_database):
-    if not postgres_database.is_connected():
-        pytest.skip("Postgres database not found")
     assert False
