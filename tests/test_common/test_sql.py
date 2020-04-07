@@ -1,6 +1,7 @@
 
 import pytest
 
+import os
 import spidertools.common as tutils
 import spidertools.common.accessors.base as base
 
@@ -17,7 +18,10 @@ def mysql_database():
     database = tutils.GenericDatabase("127.0.0.1", 3306, "root", "", "test_schema", schemadef)
 
     if not database.is_connected():
-        pytest.skip("Failed to connect to MySql database")
+        if os.getenv("CI") == "true":
+            pytest.fail()
+        else:
+            pytest.skip("Failed to connect to MySql database")
 
     yield database
 
@@ -29,7 +33,10 @@ def postgres_database():
     database = tutils.GenericDatabase("127.0.0.1", 5432, "postgres", "", "test_schema", schemadef)
 
     if not database.is_connected():
-        pytest.skip("Failed to connect to Postgres database")
+        if os.getenv("CI") == "true":
+            pytest.fail()
+        else:
+            pytest.skip("Failed to connect to Postgres database")
 
     yield database
 
