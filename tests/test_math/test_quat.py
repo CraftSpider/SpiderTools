@@ -30,27 +30,88 @@ def test_quat_sub():
 
 
 def test_quat_mul():
-    pytest.skip()
+    w = math.Quaternion(0, 0, 0, 1)
+    x = math.Quaternion(1, 0, 0, 0)
+    y = math.Quaternion(0, 1, 0, 0)
+    z = math.Quaternion(0, 0, 1, 0)
+
+    assert w * w == w
+    assert w * x == x
+    assert w * y == y
+    assert w * z == z
+
+    assert x * w == x
+    assert x * x == -w
+    assert x * y == z
+    assert x * z == -y
+
+    assert y * w == y
+    assert y * x == -z
+    assert y * y == -w
+    assert y * z == x
+
+    assert z * w == z
+    assert z * x == y
+    assert z * y == -x
+    assert z * z == -w
 
 
 def test_quat_truediv():
-    pytest.skip()
+    w = math.Quaternion(0, 0, 0, 1)
+    x = math.Quaternion(1, 0, 0, 0)
+    y = math.Quaternion(0, 1, 0, 0)
+    z = math.Quaternion(0, 0, 1, 0)
+
+    assert w / w == w
+    assert w / x == x
+    assert w / y == y
+    assert w / z == z
+
+    assert x / w == -x
+    assert x / x == w
+    assert x / y == -z
+    assert x / z == y
+
+    assert y / w == -y
+    assert y / x == z
+    assert y / y == w
+    assert y / z == -x
+
+    assert z / w == -z
+    assert z / x == -y
+    assert z / y == x
+    assert z / z == w
 
 
 def test_quat_neg():
-    pytest.skip()
+    q = math.Quaternion(1, 2, 3, 4)
+    q2 = math.Quaternion(3, 0, 2, 0)
+
+    assert -q == math.Quaternion(-1, -2, -3, -4)
+    assert -q2 == math.Quaternion(-3, 0, -2, 0)
 
 
 def test_quat_abs():
-    pytest.skip()
+    q = math.Quaternion(1, 1, 1, 1)
+    q2 = math.Quaternion(-2, -2, -2, -2)
+
+    assert abs(q) == 2
+    assert abs(q2) == 4
 
 
 def test_quat_normal():
-    pytest.skip()
+    q = math.Quaternion(1, 2, 3, 4)
+
+    assert abs(q) != 1
+    assert abs(q.normal()) == 1
 
 
 def test_quat_inverse():
-    pytest.skip()
+    q = math.Quaternion(1, 2, 3, 4)
+    q2 = math.Quaternion(4, 3, 2, 1)
+
+    assert q * q.inverse() == math.Quaternion(0, 0, 0, 1)
+    assert q2 * q2.inverse() == math.Quaternion(0, 0, 0, 1)
 
 
 def test_rotate_vector():

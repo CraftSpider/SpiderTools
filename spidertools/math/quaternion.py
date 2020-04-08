@@ -96,7 +96,7 @@ class Quaternion:
         :return: New quat from multiplied value
         """
         if isinstance(other, Quaternion):
-            w = self.w * other.w - self.x * other.x - self.y * other.y - self.z - other.z
+            w = self.w * other.w - self.x * other.x - self.y * other.y - self.z * other.z
             x = self.w * other.x + self.x * other.w + self.y * other.z - self.z * other.y
             y = self.w * other.y - self.x * other.z + self.y * other.w + self.z * other.x
             z = self.w * other.z + self.x * other.y - self.y * other.x + self.z * other.w
@@ -222,7 +222,7 @@ class Quaternion:
             Get the magnitude or norm of this quat
         :return: Magnitude of the quat
         """
-        return (self.x**2 + self.y**2 + self.z**2 + self.w**2)**.5
+        return round((self.x**2 + self.y**2 + self.z**2 + self.w**2)**.5, 5)
 
     def magnitude_squared(self):
         """
