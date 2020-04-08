@@ -52,6 +52,8 @@ def database(request):
         else:
             pytest.skip("Failed to connect to MySql database")
 
+    database.verify_schema()
+
     yield database
 
 
@@ -87,8 +89,6 @@ def test_empty_database():
 
 @pytest.mark.parametrize("database", ["mysql", "postgres"], indirect=True)
 def test_database(database: tutils.GenericDatabase):
-
-    database.verify_schema()
 
     item1 = Test1([4, "Hello World"])
     item2 = Test1([-4, None])
