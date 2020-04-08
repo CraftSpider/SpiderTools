@@ -7,8 +7,31 @@ import spidertools.common.accessors.base as base
 
 
 SCHEMA = {
-
+    "tables": {
+        "test1": {
+            "columns": [
+                {
+                    "name": "col1",
+                    "type": "integer",
+                    "not_null": True
+                },
+                {
+                    "name": "col2",
+                    "type": "text"
+                }
+            ]
+        }
+    }
 }
+
+
+class Test1(tutils.Row):
+
+    __slots__ = ("col1", "col2")
+
+    @classmethod
+    def table_name(cls):
+        return "test1"
 
 
 @pytest.fixture()
@@ -62,5 +85,34 @@ def test_empty_database():
 
 
 @pytest.mark.parametrize("database", ["mysql", "postgres"], indirect=True)
-def test_mysql_database(database):
-    assert False
+def test_database(database: tutils.GenericDatabase):
+
+    database.verify_schema()
+
+    item1 = Test1([4, "Hello World"])
+    item2 = Test1([-4, None])
+
+    database.save_item(item1)
+    database.save_item(item2)
+
+    assert database.get_count(Test1) == 2
+    assert len(database.get_items(Test1)) == 2
+
+    assert database.get_item(Test1, col1=4) == item1
+    assert database.get_item(Test1, col1=4).col2 == "Hello World"
+    assert database.get_item(Test1, col1=-4) == item2
+    assert database.get_item(Test1, col1=-4).col2 is None
+
+    database.remove_item(item1)
+
+    assert database.get_count(Test1) == 1
+    assert len(database.get_items(Test1)) == 1
+
+    assert database.get_item(Test1, col1=4) is None
+    assert database.get_item(Test1, col1=-4) == item2
+
+    item2.col2 = "Test string"
+
+    database.save_item(item2)
+
+    assert database.get_item(Test1, col1=-4).col2 == "Test string"
