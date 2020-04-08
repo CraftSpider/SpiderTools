@@ -377,7 +377,7 @@ class GenericDatabase:
         :return: Number of type in the database
         """
         conditions = and_from_dict(kwargs)
-        return self._accessor.count(type.table_name(), where=conditions, params=kwargs)[0]
+        return self._accessor.count(type.table_name(), where=conditions, params=kwargs)
 
     @clstools.cache_invalidator(func=(get_item, get_items, get_count), method=True, args=0, generic=True)
     def save_item(self, item):
