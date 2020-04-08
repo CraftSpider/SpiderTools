@@ -12,31 +12,21 @@ SCHEMA = {
 
 
 @pytest.fixture()
-def mysql_database():
+def database(request):
     schemadef = SCHEMA.copy()
-    schemadef["sql_flavor"] = "mysql"
-    database = tutils.GenericDatabase("127.0.0.1", 3306, "root", "", "test_schema", schemadef)
+
+    schemadef["sql_flavor"] = request.param
+
+    if request.param == "postgres":
+        database = tutils.GenericDatabase("127.0.0.1", 5432, "postgres", "", "test_schema", schemadef)
+    elif request.param == "mysql":
+        database = tutils.GenericDatabase("127.0.0.1", 3306, "root", "", "test_schema", schemadef)
 
     if not database.is_connected():
         if os.getenv("CI") == "true":
             pytest.fail()
         else:
             pytest.skip("Failed to connect to MySql database")
-
-    yield database
-
-
-@pytest.fixture()
-def postgres_database():
-    schemadef = SCHEMA.copy()
-    schemadef["sql_flavor"] = "postgres"
-    database = tutils.GenericDatabase("127.0.0.1", 5432, "postgres", "", "test_schema", schemadef)
-
-    if not database.is_connected():
-        if os.getenv("CI") == "true":
-            pytest.fail()
-        else:
-            pytest.skip("Failed to connect to Postgres database")
 
     yield database
 
@@ -71,9 +61,6 @@ def test_empty_database():
         "Database execution returned unexpected result"
 
 
-def test_mysql_database(mysql_database):
-    assert False
-
-
-def test_postgres_database(postgres_database):
+@pytest.mark.parametrize("database", ["mysql", "postgres"], indirect=True)
+def test_mysql_database(database):
     assert False
