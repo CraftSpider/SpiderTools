@@ -275,14 +275,16 @@ class PostgresAccessor(base.DatabaseAccessor):
             # TODO: Make this an accessor method?
             self.execute("SELECT col.column_name from information_schema.TABLE_CONSTRAINTS tab, " +
                          "information_schema.CONSTRAINT_COLUMN_USAGE col WHERE " +
-                         f"col.table_schema = %s AND " +
-                         f"col.table_schema = tab.table_schema AND "
+                         "col.table_schema = %s AND " +
+                         "col.table_schema = tab.table_schema AND "
                          "col.constraint_name = tab.constraint_name AND " +
                          "col.table_name = tab.table_name AND " +
                          "tab.constraint_type = 'PRIMARY KEY' AND " +
-                         f"col.table_name = %s", [self.current_schema(), table])
+                         "col.table_name = %s", [self.current_schema(), table])
             cols = self._cursor.fetchall()
             cols = tuple(map(lambda x: x[0], cols))
+            if len(cols) == 0:
+                raise ValueError("Table has no primary keys, cannot update")  # TODO: allow update anyways?
             cols = ", ".join(cols)
 
             query += f" ON CONFLICT ({cols}) DO UPDATE SET " + ", ".join(f"{i} = EXCLUDED.{i}" for i in names)

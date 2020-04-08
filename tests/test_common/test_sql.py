@@ -19,7 +19,8 @@ SCHEMA = {
                     "name": "col2",
                     "type": "text"
                 }
-            ]
+            ],
+            "primary": ["col1"]
         }
     }
 }
