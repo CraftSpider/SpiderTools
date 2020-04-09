@@ -1,5 +1,5 @@
 """
-    Holds utility class and special subclasses for Talos.
+    Holds various common utilities for parsing and manipulation.
 
     author: CraftSpider
 """

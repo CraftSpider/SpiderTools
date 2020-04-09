@@ -166,7 +166,7 @@ class ExtendedBot(commands.Bot):
     def find_command(self, command):
         """
             Given a string command, attempts to find it iteratively through command groups
-        :param command: Command to find in Talos. Can have spaces if necessary
+        :param command: Command to find in the bot. Can have spaces if necessary
         :return: Command object if found, None otherwise
         """
         if command in self.all_commands:

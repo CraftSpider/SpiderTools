@@ -19,7 +19,6 @@ class AsyncFunction(pytest.Function):
 
 
 def pytest_pycollect_makeitem(collector, name, obj):
-    print(collector, name, obj, sep="\n")
     if collector.istestfunction(obj, name) and asyncio.iscoroutinefunction(obj):
         module = collector.getparent(pytest.Module).obj
         clscol = collector.getparent(pytest.Class)
@@ -52,6 +51,18 @@ def pytest_pycollect_makeitem(collector, name, obj):
 class TestBot(bot.ExtendedBot):
     startup_extensions = ("extension1",)
     extension_dir = "tests.test_extensions"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_logging():
+    import logging
+    import sys
+    log = logging.getLogger("spidertools")
+    log.setLevel(logging.DEBUG)
+    format = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
+    handle = logging.StreamHandler(stream=sys.stdout)
+    handle.setFormatter(format)
+    log.addHandler(handle)
 
 
 @pytest.fixture()

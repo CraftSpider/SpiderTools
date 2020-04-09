@@ -13,9 +13,10 @@ def _resolve_args(func: Callable, possible: Dict[str, Any]) -> Tuple[Iterable[An
 
 class BaseHandler:
 
-    __slots__ = ("app",)
+    __slots__ = ("app", "path")
 
     app: web.Application
+    path: str
 
     def __init__(self, app: web.Application) -> None: ...
 

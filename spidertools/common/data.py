@@ -188,6 +188,14 @@ class SqlConvertable(metaclass=abc.ABCMeta):
         """
 
 
+class Schema(Row):
+    """
+        Information Schema SCHEMA Table
+    """
+
+    __slots__ = ("catalog", "name", "default_character_set", "default_collation", "sql_path", "default_encryption")
+
+
 class Table(Row):
     """
         Information Schema TABLES Table
@@ -206,3 +214,15 @@ class Column(Row):
     __slots__ = ("catalog", "schema", "table_name", "name", "position", "default", "nullable", "type", "char_max_len",
                  "bytes_max_len", "numeric_precision", "numeric_scale", "datetime_precision", "char_set_name",
                  "collation_name", "column_type", "column_key", "extra", "privileges", "comment", "generation_expr")
+
+
+class Trigger(Row):
+    """
+        Information Schema TRIGGERS Table
+    """
+
+    __slots__ = ("catalog", "schema", "name", "event_manipulation", "event_object_catalog", "event_object_schema",
+                 "event_object_table", "action_order", "action_condition", "action_statement", "action_orientation",
+                 "action_timing", "action_reference_old_table", "action_reference_new_table",
+                 "action_reference_old_row", "action_reference_new_row", "created", "sql_mode", "definer",
+                 "character_set_client", "collation_connection", "database_collation")

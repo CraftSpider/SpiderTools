@@ -1,5 +1,5 @@
 """
-    Talos error classes. Most will extend commands.CommandError
+    Extended bot error classes. Most will extend commands.CommandError
 
     author: CraftSpider
 """

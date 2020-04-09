@@ -10,6 +10,10 @@ import importlib.machinery
 import pkgutil
 import pathlib
 import typing
+import logging
+
+
+log = logging.getLogger("spidertools.common.reflection")
 
 
 def unwrap(obj):
@@ -145,17 +149,17 @@ def classify_attr(cls, name, default=...):
     return inspect.Attribute(name, kind, homecls, obj)
 
 
-def _get_declared_type(type, predicate=None):
+def _get_declared_type(cls, predicate=None):
     """
         Get all the attributes of a type that are declared by that type
-    :param type: Type to get declared attributes of
+    :param cls: Type to get declared attributes of
     :param predicate: Predicate to filter out attributes
     :return: Tuple containing name and value of declared attributes
     """
-    attrs = inspect.classify_class_attrs(type)
+    attrs = inspect.classify_class_attrs(cls)
     for item in attrs:
-        if item.defining_class != type or\
-                (inspect.isfunction(item.object) and getattr(item.object, "__module__", None) != type.__module__):
+        if item.defining_class != cls or\
+                (inspect.isfunction(item.object) and getattr(item.object, "__module__", None) != cls.__module__):
             continue
         if predicate is None or predicate(item.object):
             yield item.name, item.object
@@ -194,7 +198,7 @@ def _get_declared_mod(mod, predicate=None):
             elif name in MOD_VARS:
                 yield name, obj
             elif not hasattr(obj, "__module__"):
-                print(f"Not sure whether part of module or not: {name} - {obj}")
+                log.debug(f"Not sure whether part of module or not: {name} - {obj}")
                 unsure.append((name, obj))
 
     for name, obj in unsure:
@@ -220,18 +224,18 @@ def get_declared(obj, predicate=None):
         raise TypeError(f"Cannot get values declared by object of type '{type(obj).__name__}'")
 
 
-def _get_undoc_type(type):
+def _get_undoc_type(cls):
     """
         Get a list of all the undocumented attributes of a type
-    :param type: Type to get undoced attributes of
+    :param cls: Type to get undoced attributes of
     :return: List of undocumented attributes
     """
     out = []
 
-    if not has_doc(type):
-        out.append((type.__name__, type))
+    if not has_doc(cls):
+        out.append((cls.__name__, cls))
 
-    for name, obj in get_declared(type, is_docable):
+    for name, obj in get_declared(cls, is_docable):
         if inspect.isclass(obj):
             out.extend(get_undoced(obj))
         elif isinstance(obj, commands.Command) or isinstance(obj, dutils.EventLoop):
@@ -262,7 +266,7 @@ def _get_undoc_mod(mod):
 def _get_undoc_pkg(pkg):
     """
         Get a list of all the undocumented attributes of a package
-    :param type: Package path to get undoced attributes of
+    :param pkg: Package path to get undoced attributes of
     :return: List of undocumented attributes
     """
     found = False
@@ -281,7 +285,7 @@ def _get_undoc_pkg(pkg):
 def get_undoced(obj):
     """
         Get a list of all the undocumented attributes of any object
-    :param type: Object to get undoced attributes of
+    :param obj: Object to get undoced attributes of
     :return: List of undocumented attributes
     """
     if inspect.isclass(obj):
@@ -336,7 +340,7 @@ def module_from_file(path, base=None):
         sys.modules[name] = mod
     try:
         spec.loader.exec_module(mod)
-    except BaseException as e:
+    except BaseException:
         del sys.modules[name]
         raise
 
