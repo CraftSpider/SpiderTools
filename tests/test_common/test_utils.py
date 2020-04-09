@@ -1,5 +1,5 @@
 """
-    Tests Talos utils. Ensures that basic functions work right, and that methods have documentation.
+    Tests spidertools utils. Ensures that basic functions work right, and that methods have documentation.
     (Yes, method docstrings are enforced)
 
     Author: CraftSpider

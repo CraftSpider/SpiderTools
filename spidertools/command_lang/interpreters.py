@@ -1,5 +1,5 @@
 """
-    Talos CommandLang interpreter. Defines the base command lang parser, which should be subclassed to override
+    CommandLang interpreter. Defines the base command lang parser, which should be subclassed to override
     the command execution and value processing for specific platforms
 
     author: CraftSpider

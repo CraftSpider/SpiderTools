@@ -1,9 +1,10 @@
 
 import spidertools.common.nano as nano
+import os
 
 
 async def test_nanoclient():
-    client = nano.NanoClient("talosbot", "***REMOVED***")
+    client = nano.NanoClient("talosbot", os.getenv("TALOS_PSWD"))
     await client.init()
 
     marcy = await client.get_user("marcyt")

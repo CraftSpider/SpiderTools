@@ -5,7 +5,7 @@ import datetime as dt
 
 class ConverterMeta(type):
     """
-        Metaclass for TalosConverter objects. Provides the getattr that returns a new instance of the
+        Metaclass for GenericConverter objects. Provides the getattr that returns a new instance of the
         converter if generics are used
     """
 
@@ -22,7 +22,7 @@ class ConverterMeta(type):
 
 class GenericConverter(type, commands.Converter, metaclass=ConverterMeta):
     """
-        Metaclass that will be subclassed by TalosConverters. Creates new classes on demand to be used as arguments
+        Metaclass that will be subclassed by GenericConverters. Creates new classes on demand to be used as arguments
         to Generics in type hinting. Allows for arguments to be passed to a converter while also allowing them to be
         used in Unions or Optionals or similar
     """
