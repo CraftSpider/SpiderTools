@@ -445,4 +445,4 @@ class GenericDatabase:
         conditions = and_from_dict(kwargs)
         if isinstance(limit, tuple):
             limit = f"{limit[0]},{limit[1]}"
-        self._accessor.delete(type.table_name(), where=conditions, order=order, limit=limit)
+        self._accessor.delete(type.table_name(), where=conditions, order=order, limit=limit, params=kwargs)
