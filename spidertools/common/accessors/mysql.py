@@ -162,13 +162,13 @@ class MysqlAccessor(base.DatabaseAccessor):
                 on_delete = i.get("on_delete", None)
                 on_update = i.get("on_update", None)
 
-                query = f"FOREIGN KEY ({local_name}) REFERENCES {remote_table}({remote_name})"
+                foreign = f"FOREIGN KEY ({local_name}) REFERENCES {remote_table}({remote_name})"
                 if on_delete is not None:
-                    query += f" ON DELETE {on_delete}"
+                    foreign += f" ON DELETE {on_delete}"
                 if on_update is not None:
-                    query += f" ON UPDATE {on_update}"
+                    foreign += f" ON UPDATE {on_update}"
 
-                lines.append(query)
+                lines.append(foreign)
 
         query += ", ".join(lines)
         query += ") ENGINE=InnoDB DEFAULT CHARSET=utf8"
