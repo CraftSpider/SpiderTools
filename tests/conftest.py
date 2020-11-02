@@ -31,7 +31,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
         metafunc = py.Metafunc(definition, fixinfo, collector.config, cls=cls, module=module)
 
         if not metafunc._calls:
-            return AsyncFunction(name, parent=collector, fixtureinfo=fixinfo)
+            return AsyncFunction.from_parent(collector, name=name, fixtureinfo=fixinfo)
         else:
             output = []
             for callspec in metafunc._calls:
