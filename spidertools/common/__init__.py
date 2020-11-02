@@ -1,5 +1,5 @@
 """
-    Utils module for Talos. To collect all the different things Talos needs to run.
+    Common utils module. To collect all the different things that are small enough or don't have a better module.
 
     author: CraftSpider
 """

@@ -25,10 +25,10 @@ def unwrap(obj):
     :return: Unwrapped object
     """
     while hasattr(obj, "__func__") or hasattr(obj, "__wrapped__"):
-        if getattr(obj, "__func__", None) is not None:
-            obj = obj.__func__
-        elif getattr(obj, "__wrapped__", None) is not None:
+        if getattr(obj, "__wrapped__", None) is not None:
             obj = obj.__wrapped__
+        elif getattr(obj, "__func__", None) is not None:
+            obj = obj.__func__
     return obj
 
 
@@ -45,7 +45,7 @@ def get_doc(obj):
     """
         Get the docstring of an object. This differs from the inspect equivalent
         in that it will not attempt to find a doc on parent classes or such, only
-        returning the immediate docstring, though it will unwrap the object first
+        returning the immediate docstring.
     :param obj: Object to get docstring from
     :return: Docstring for the object, if it exists
     """
@@ -72,81 +72,98 @@ def is_docable(obj):
     return inspect.isroutine(obj) or inspect.isclass(obj) or isinstance(obj, property) or hasattr(obj, "__wrapped__")
 
 
-def classify_attr(cls, name, default=...):
-    """
-        Classify a class attribute. Determine on which class it is defines, and guess at its type
-    :param cls: Class to classify an attribute on
-    :param name: Name of the attribute to classify
-    :param default: Default value to return if attribute isn't found
-    :return: inspect.Attribute object with info about the desired attribute
-    """
-    import types
-    mro = inspect.getmro(cls)
-    metamro = inspect.getmro(type(cls))  # for attributes stored in the metaclass
-    metamro = tuple(cls for cls in metamro if cls not in (type, object))
-    class_bases = (cls,) + mro
-    all_bases = class_bases + metamro
+class Attribute:
+    name: str
+    value: typing.Any
+    origin: type
 
-    homecls = None
-    get_obj = None
-    dict_obj = None
+    def __init__(self, name, value, origin):
+        self.name = name
+        self.value = value
+        self.origin = origin
+
+    def __repr__(self):
+        return f"Attribute(name={repr(self.name)}, value={repr(self.value)}, origin={repr(self.origin)})"
+
+
+def get_attribute_names(cls):
+    mro = cls.__mro__
+    attr_names = set(dir(cls))
+
+    for i in mro:
+        if hasattr(i, "__dict__"):
+            attr_names |= set(cls.__dict__.keys())
+
+    return attr_names
+
+
+def get_attribute(cls, name):
+    # __dict__ is a special case, it can be the same object even on different types in the MRO
+    # but all classes should be guaranteed to have it
+    if name == "__dict__":
+        return Attribute("__dict__", cls.__dict__, name)
+
+    meta_mro = tuple(i for i in type(cls).__mro__ if i not in (type, object))
+    mro = cls.__mro__
+    origin = None
+    get_val = None
+    dict_val = None
+
+    # Try to get object on type directly
     try:
-        if name == '__dict__':
-            raise Exception("__dict__ is special, don't want the proxy")
-        get_obj = getattr(cls, name)
+        get_val = getattr(cls, name)
     except Exception:
         pass
     else:
-        homecls = getattr(get_obj, "__objclass__", homecls)
-        if homecls not in class_bases:
-            # if the resulting object does not live somewhere in the
-            # mro, drop it and search the mro manually
-            homecls = None
+        # If object was found, ascertain the furthest down the MRO it exists
+        origin = getattr(get_val, "__objclass__", None)
+        if origin not in mro:
             last_cls = None
-            # first look in the classes
-            for srch_cls in class_bases:
-                srch_obj = getattr(srch_cls, name, None)
-                if srch_obj is get_obj:
-                    last_cls = srch_cls
-            # then check the metaclasses
-            for srch_cls in metamro:
+
+            for i in mro:
+                srch_val = getattr(i, name, Empty)
+                if srch_val is get_val:
+                    last_cls = i
+
+            for i in meta_mro:
                 try:
-                    srch_obj = srch_cls.__getattr__(cls, name)
+                    srch_val = i.__getattr__(i, name)
                 except AttributeError:
                     continue
-                if srch_obj is get_obj:
-                    last_cls = srch_cls
-            if last_cls is not None:
-                homecls = last_cls
-    for base in all_bases:
-        if name in base.__dict__:
-            dict_obj = base.__dict__[name]
-            if homecls not in metamro:
-                homecls = base
+                if srch_val is get_val:
+                    last_cls = i
+
+            origin = last_cls
+
+    # Search dicts for more info TODO: Overrides above, ???
+    for i in mro + meta_mro:
+        if hasattr(i, "__dict__") and name in i.__dict__:
+            dict_val = i.__dict__[name]
+            if origin not in meta_mro:
+                origin = i
             break
-    if homecls is None:
-        # unable to locate the attribute anywhere, most likely due to
-        # buggy custom __dir__; discard and move on
-        if default is ...:
-            raise AttributeError(f"type object '{cls.__name__}' has no attribute '{name}'")
-        else:
-            return default
-    obj = get_obj if get_obj is not None else dict_obj
-    # Classify the object or its descriptor.
-    if isinstance(dict_obj, (staticmethod, types.BuiltinMethodType)):
-        kind = "static method"
-        obj = dict_obj
-    elif isinstance(dict_obj, (classmethod, types.ClassMethodDescriptorType)):
-        kind = "class method"
-        obj = dict_obj
-    elif isinstance(dict_obj, property):
-        kind = "property"
-        obj = dict_obj
-    elif inspect.isroutine(obj):
-        kind = "method"
-    else:
-        kind = "data"
-    return inspect.Attribute(name, kind, homecls, obj)
+
+    # Couldn't find an origin, likely a bug. Skip this name
+    if origin is None:
+        print(f"Unable to locate type for {name}")
+        return None
+
+    obj = get_val if get_val is not None else dict_val
+
+    return Attribute(name, obj, cls)
+
+
+def get_attributes(cls):
+    attr_names = get_attribute_names(cls)
+
+    out = []
+
+    for name in attr_names:
+        attr = get_attribute(cls, name)
+        if attr is not None:
+            out.append(attr)
+
+    return out
 
 
 def _get_declared_type(cls, predicate=None):
