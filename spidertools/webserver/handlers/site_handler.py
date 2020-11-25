@@ -15,12 +15,12 @@ class SiteHandler(BaseHandler):
 
     __slots__ = ("webmaster", "base_path")
 
-    def __init__(self, app):
+    def __init__(self, app, path):
         """
             Initializer for the Handler. Will only be run once due to singleton nature
         :param app: Application for this server
         """
-        super().__init__(app)
+        super().__init__(app, path)
         self.webmaster = self.app["settings"].get("webmaster")
         self.base_path = self.app["settings"].get("base_path")
 
