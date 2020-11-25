@@ -9,6 +9,10 @@ setup(
     author="CraftSpider",
     author_email="runetynan@gmail.com",
     url="https://github.com/craftspider/spidertools",
-    install_requires=["discord.py", "mysql-connector-python", "psycopg2"],  # TODO: Make both mysql and postgres suggested not required
+    install_requires=["discord.py"],
+    extras_require={
+        "mysql": ["mysql-connector-python"],
+        "postgres": ["psycopg2"]
+    },
     packages=find_packages()
 )
