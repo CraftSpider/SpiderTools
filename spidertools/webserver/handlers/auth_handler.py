@@ -16,12 +16,12 @@ class AuthHandler(BaseHandler):
 
     __slots__ = ("t_redirect",)
 
-    def __init__(self, app):
+    def __init__(self, app, path):
         """
             Create a new Webserver Authorization handler
         :param app: The application this handler is tied to
         """
-        super().__init__(app)
+        super().__init__(app, path)
         self.t_redirect = None
 
     async def get(self, request):
